@@ -1,395 +1,225 @@
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-// import 'package:url_launcher/url_launcher.dart';
-import 'dart:convert';
-import 'main.dart';
+
 import 'API.dart';
-import 'dart:async';
+import 'features/auth/auth_repository.dart';
 
-//import 'ListPage.dart';
-
-class Login extends StatefulWidget {
+class Login extends ConsumerStatefulWidget {
   const Login({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
-  _LoginState createState() => _LoginState();
+  ConsumerState<Login> createState() => _LoginState();
 }
 
-class _LoginState extends State<Login> {
-  bool isLoggedIn = false;
-  bool _obscureText = true;
-  String datauser = '';
-  String msg = '';
-  String jwt = '';
+class _LoginState extends ConsumerState<Login> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
 
-  PackageInfo _packageInfo = PackageInfo(
-    appName: 'Unknown',
-    packageName: 'Unknown',
-    version: 'Unknown',
-    buildNumber: 'Unknown',
-    buildSignature: 'Unknown',
-  );
+  bool _obscureText = true;
+  bool _isLoading = false;
+  String? _versionInfo;
 
   @override
   void initState() {
     super.initState();
     _initPackageInfo();
-    autoLogIn();
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   Future<void> _initPackageInfo() async {
-    final PackageInfo info = await PackageInfo.fromPlatform();
-    setState(() {
-      _packageInfo = info;
-    });
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) {
+      setState(() {
+        _versionInfo = 'v${info.version}+${info.buildNumber}';
+      });
+    }
   }
 
-  TextEditingController user = TextEditingController();
-  TextEditingController pass = TextEditingController();
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
-  saveBoolValue(String key, bool value) async {
-    // get shared preference instance.
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    // Set the key ('isLoggenIn') with a value (true/false) here.
-    prefs.setBool(key, value);
-  }
+    setState(() => _isLoading = true);
 
-  saveStrValue(String key, String value) async {
-    // get shared preference instance.
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    // Set the key ('isLoggenIn') with a value (true/false) here.
-    prefs.setString(key, value);
-    //print(key.toString() + " " + value.toString());
-  }
-
-  void autoLogIn() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? datauser = prefs.getString('datauser');
-    final bool? isLoggedIn = prefs.getBool('isLoggedIn');
-    final String? jwt = prefs.getString('jwt');
-
-    if (isLoggedIn != null && isLoggedIn == true) {
-      // ignore: use_build_context_synchronously
-      final container = MyInheritedWidget.of(context, false);
-
-      // check the jwt is valid first!
-      if (jwt != null && jwt != "") {
-        //  check expiry of jwt
-        var str = jwt.split(".");
-        if (str.length != 3) {
-          setState(() {
-            // print(jwt);
-            msg = "Login Error (jwt token fail) for autologin";
-            prefs.setString('jwt', '');
-            prefs.setBool('isLoggedIn', false);
-          });
-        } else {
-          var payload = json
-              .decode(ascii.decode(base64.decode(base64.normalize(str[1]))));
-          if (DateTime.fromMillisecondsSinceEpoch(payload["exp"] * 1000)
-              .isAfter(DateTime.now())) {
-            // print('jwt expires: ' +
-            //     (DateTime.fromMillisecondsSinceEpoch(payload["exp"] * 1000)
-            //         .toString()));
-
-            container.setJwt(jwt);
-            container.setEmail(datauser!);
-            // check user is admin or not:
-
-
-            //print(datauser + ' is auto-logged in');
-            // ignore: use_build_context_synchronously
-            Navigator.pushReplacementNamed(context, '/myhome');
-            // Authenticated! Navigate to home screen.
-          } else {}
-        }
+    try {
+      await ref.read(authRepositoryProvider).login(
+            _emailController.text,
+            _passwordController.text,
+          );
+      // The listener below will handle navigation.
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Login Failed: ${e.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }
 
-  _togglePassword() {
-    setState(() {
-      _obscureText = !_obscureText;
-    });
-  }
-
-  void logout() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    // ignore: use_build_context_synchronously
-    final container = MyInheritedWidget.of(context, false);
-
-    //print(prefs.getString('jwt'));
-    prefs.setString('datauser', "");
-    prefs.setBool('isLoggedIn', false);
-    prefs.setString('jwt', "");
-    print('resetting preferences');
-    print(prefs.getString('jwt'));
-
-    container.setJwt('');
-    container.setEmail("");
-    container.setAdmin(false);
-    container.setIndex(-1);
-    container.deleteSamplesToEdit;
-    container.setUser("");
-    container.clearEmails();
-    container.clearUsers();
-
-
-    // ignore: use_build_context_synchronously
-    Navigator.pushReplacementNamed(context, '/');
-  }
-
-  _login() async {
-    final prefs = await SharedPreferences.getInstance();
-      // This is where we get the JWT.
-      if (user.text.length < 4) {
-        setState(() {
-          msg =
-              "Invalid Username.\n The username should be at least 4 characters long";
-        });
-      } else if (pass.text.length < 4) {
-        setState(() {
-          msg =
-              "Invalid Password.\n The password should be at least 4 characters long";
-        });
-      } else {
-        API.attemptLogIn(user.text, pass.text).then((jwt) {
-          // ignore: use_build_context_synchronously
-          final container = MyInheritedWidget.of(context, false);
-          // print(jwt);`
-          // ignore: unnecessary_null_comparison
-          if (jwt != null) {
-            datauser = user.text;
-            var str = jwt.split(".");
-            if (str.length != 3) {
-              setState(() {
-                // print(jwt);
-                print("Can't get the JWT");
-                msg = "Login Error (jwt token fail)";
-                logout();
-              });
-            } else {
-              var payload = json.decode(
-                  ascii.decode(base64.decode(base64.normalize(str[1]))));
-              if (DateTime.fromMillisecondsSinceEpoch(payload["exp"] * 1000)
-                  .isAfter(DateTime.now())) {
-                // print('jwt expires' +
-                //     (DateTime.fromMillisecondsSinceEpoch(payload["exp"] * 1000)
-                //         .toString()));
-                setState(() {
-                  msg = "Login Accepted";
-                });
-
-                // save all preferences
-                prefs.setString('datauser', datauser);
-                prefs.setBool('isLoggedIn', true);
-                prefs.setString('jwt', jwt);
-
-                print("Logging in as : " + datauser);
-                print("");
-
-                //saveBoolValue('isLoggedIn', true);
-                //saveStrValue('datauser', datauser);
-                //saveStrValue('jwt', jwt);
-
-                //and to inherited widget
-                container.setEmail(datauser);
-                container.setJwt(jwt);
-
-                // go to home listing
-// ignore: unused_local_variable
-final timer = Timer(
-  const Duration(seconds: 3),
-  () {
-     print("Pushing -> home");
-                print("");
-    Navigator.pushReplacementNamed(context, '/myhome');
-  },
-);
-                
-
-              } else {
-                setState(() {
-                  msg = "Login Error";
-                  logout();
-                });
-              }
-            }
-          } else {
-            setState(() {
-              msg = "Login Error";
-              logout();
-            });
-          }
-        });
-      }
-    
-  }
-
   @override
   Widget build(BuildContext context) {
+    // This listener will react to changes in the auth state (e.g., after a
+    // successful login) and navigate to the home screen.
+    ref.listen<String?>(authStateProvider, (previous, next) {
+      if (next != null) {
+        Navigator.pushReplacementNamed(context, '/myhome');
+      }
+    });
+
     return Scaffold(
-        resizeToAvoidBottomInset: false,
-        body: Form(
-            child: Container(
-          decoration:  const BoxDecoration(
-              image:  DecorationImage(
-                  image:  AssetImage('assets/images/blue_glow.jpg'),
-                  fit: BoxFit.cover)),
+      resizeToAvoidBottomInset: false,
+      body: Form(
+        key: _formKey,
+        child: Container(
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/images/blue_glow.jpg'),
+              fit: BoxFit.cover,
+            ),
+          ),
           child: Column(
             children: <Widget>[
-              // new Container(
-              //   padding: EdgeInsets.only(top: 77.0),
-              //   child: new CircleAvatar(
-              //     backgroundColor: Colors.grey,
-              //     child: new Image(
-              //       width: 400,
-              //       height: 400,
-              //       image: new AssetImage('assets/images/avatar.jpg'),
-              //     ),
-              //   ),
-              //   width: 330,
-              //   height: 330,
-              //   decoration: BoxDecoration(shape: BoxShape.circle),
-              // ),
-              Container(
-                  padding: const EdgeInsets.only(top: 10.0),
-                  child: const Text('Sample Tracking',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 40))),
-              Container(
-                height: MediaQuery.of(context).size.height / 1.8,
-                width: MediaQuery.of(context).size.width,
-                padding: const EdgeInsets.only(top: 53),
+              const Spacer(flex: 2),
+              const Text(
+                'Sample Tracking',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 40,
+                ),
+              ),
+              const Spacer(flex: 1),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32.0),
                 child: Column(
                   children: <Widget>[
-                    Container(
-                      width: MediaQuery.of(context).size.width / 1.2,
-                      padding: const EdgeInsets.only(
-                          top: 4, left: 16, right: 16, bottom: 4),
-                      decoration: const BoxDecoration(
-                          borderRadius: BorderRadius.all(Radius.circular(50)),
-                          color: Colors.white,
-                          boxShadow: [
-                            BoxShadow(
-                                color: Color.fromRGBO(158, 166, 186, 1.0),
-                                blurRadius: 5)
-                          ]),
-                      child: TextFormField(
-                        controller: user,
-                        decoration: const InputDecoration(
-                          icon: Icon(
-                            Icons.email,
-                            color: Color.fromRGBO(158, 166, 186, 1.0),
-                          ),
-                          hintText: 'Email',
-                        ),
-                      ),
-                    ),
-                    Container(
-                      width: MediaQuery.of(context).size.width / 1.2,
-                      height: 50,
-                      margin: const EdgeInsets.only(top: 4),
-                      padding: const EdgeInsets.only(
-                          top: 4, left: 16, right: 16, bottom: 4),
-                      decoration: const BoxDecoration(
-                          borderRadius: BorderRadius.all(Radius.circular(50)),
-                          color: Colors.white,
-                          boxShadow: [
-                            BoxShadow(
-                                color: Color.fromRGBO(158, 166, 186, 1.0),
-                                blurRadius: 5)
-                          ]),
-                      child: TextFormField(
-                        controller: pass,
-                        obscureText: _obscureText,
-                        decoration: InputDecoration(
-                          icon: const Icon(
-                            Icons.vpn_key,
-                            color: Color.fromRGBO(158, 166, 186, 1.0),
-                          ),
-                          suffixIcon: GestureDetector(
-                            onTap: _togglePassword,
-                            child: const Icon(Icons.remove_red_eye),
-                          ),
-                          hintText: 'Password',
-                        ),
-                      ),
-                    ),
+                    _buildEmailField(),
+                    const SizedBox(height: 16),
+                    _buildPasswordField(),
+                    const SizedBox(height: 8),
                     Align(
                       alignment: Alignment.centerRight,
-                      child: Padding(
-                        padding: const EdgeInsets.only(
-                            top: 6, right: 32, left: 32, bottom: 2),
-                        child: Text(
-                          'App version' +
-                              _packageInfo.version.toString() +
-                              " + " +
-                              _packageInfo.buildNumber,
-                          //'Reset Password',
-                          style: const TextStyle(
-                            color: Colors.white,
-                          ),
-                        ),
+                      child: Text(
+                        _versionInfo ?? '',
+                        style: const TextStyle(color: Colors.white70),
                       ),
                     ),
-                    const Spacer(),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orangeAccent,
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30.0),
-                          side: const BorderSide(color: Colors.red),
-                        ),
-                      ),
-                      onPressed: () {
-                        _login();
-                      },
-                      child: const Text('Submit'),
-                    ),
-                    // Padding(
-                    //   padding: const EdgeInsets.all(10.0),
-                    //   child: Text(
-                    //     'Or',
-                    //     style: TextStyle(color: Colors.white),
-                    //   ),
-                    // ),
-                    // new ElevatedButton(
-                    //   child: const Text('Login with Orcid'),
-                    //   style: ElevatedButton.styleFrom(
-                    //     primary: Colors.orangeAccent,
-                    //     onPrimary: Colors.black,
-                    //     shape: RoundedRectangleBorder(
-                    //       borderRadius: new BorderRadius.circular(30.0),
-                    //       side: BorderSide(color: Colors.red),
-                    //     ),
-                    //   ),
-                    //   onPressed: _launchURL,
-                    // ),
-                    const Spacer(),
-                    Text(
-                      msg,
-                      style: const TextStyle(
-                          fontSize: 15.0,
-                          color: Color.fromARGB(255, 231, 244, 54)),
-                    )
                   ],
                 ),
               ),
+              const Spacer(flex: 2),
+              _buildLoginButton(),
+              const Spacer(flex: 2),
             ],
           ),
-        )));
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmailField() {
+    return TextFormField(
+      controller: _emailController,
+      keyboardType: TextInputType.emailAddress,
+      style: const TextStyle(color: Colors.black),
+      decoration: _buildInputDecoration('Email', Icons.email),
+      validator: (value) {
+        if (value == null || value.length < 4) {
+          return 'Username must be at least 4 characters long';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildPasswordField() {
+    return TextFormField(
+      controller: _passwordController,
+      obscureText: _obscureText,
+      style: const TextStyle(color: Colors.black),
+      decoration: _buildInputDecoration('Password', Icons.vpn_key).copyWith(
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscureText ? Icons.visibility : Icons.visibility_off,
+            color: const Color.fromRGBO(158, 166, 186, 1.0),
+          ),
+          onPressed: () => setState(() => _obscureText = !_obscureText),
+        ),
+      ),
+      validator: (value) {
+        if (value == null || value.length < 4) {
+          return 'Password must be at least 4 characters long';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildLoginButton() {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.orangeAccent,
+        foregroundColor: Colors.black,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(30.0),
+          side: const BorderSide(color: Colors.red),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+      ),
+      onPressed: _isLoading ? null : _login,
+      child: _isLoading
+          ? const SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.black,
+              ),
+            )
+          : const Text('Submit'),
+    );
+  }
+
+  InputDecoration _buildInputDecoration(String hintText, IconData icon) {
+    return InputDecoration(
+      hintText: hintText,
+      prefixIcon: Icon(icon, color: const Color.fromRGBO(158, 166, 186, 1.0)),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(50),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(50),
+        borderSide: const BorderSide(color: Colors.orangeAccent, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(50),
+        borderSide: const BorderSide(color: Colors.red, width: 2),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(50),
+        borderSide: const BorderSide(color: Colors.red, width: 2),
+      ),
+    );
   }
 }
-
-// const _url =
-//     'https://sandbox.orcid.org/oauth/authorize?client_id=APP-IPP05E0V26N7MYK0&response_type=code&scope=/authenticate&redirect_uri=https://samples.ncnr.nist.gov/orcid';
-// void _launchURL() async => await canLaunchUrl(Uri.parse(_url))
-//     ? await launchUrl(Uri.parse(_url))
-//     : throw 'could not launch $_url';
