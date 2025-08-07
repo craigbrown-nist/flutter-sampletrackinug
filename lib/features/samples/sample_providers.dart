@@ -40,6 +40,12 @@ final userSamplesProvider = FutureProvider<List<Sample>>((ref) async {
   return apiClient.getUserSamples(jwt, userEmail: userEmail);
 });
 
+final allSamplesProvider = FutureProvider<List<Sample>>((ref) async {
+  final apiClient = ref.watch(apiClientProvider);
+  final jwt = ref.watch(_jwtProvider);
+  return apiClient.getSamples(jwt);
+});
+
 final allUsersProvider = FutureProvider<List<User>>((ref) async {
   final apiClient = ref.watch(apiClientProvider);
   final jwt = ref.watch(_jwtProvider);

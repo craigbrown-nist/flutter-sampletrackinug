@@ -123,21 +123,30 @@ class ListPage extends ConsumerWidget {
   }
 
   Widget _buildBottomAppBar(WidgetRef ref) {
+    final pageController = ref.read(listPageControllerProvider.notifier);
+    final pageState = ref.watch(listPageControllerProvider);
+
     return BottomAppBar(
       color: const Color.fromRGBO(158, 166, 186, 1.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: <Widget>[
           IconButton(
-            icon: const Icon(MdiIcons.orderNumericDescending, color: Colors.white),
+            icon: Icon(
+              MdiIcons.orderNumericDescending,
+              color: pageState.sortType == SortType.id ? Colors.amber : Colors.white,
+            ),
             onPressed: () {
-              // TODO: Implement sorting logic
+              pageController.setSort(SortType.id);
             },
           ),
           IconButton(
-            icon: const Icon(MdiIcons.orderAlphabeticalDescending, color: Colors.white),
+            icon: Icon(
+              MdiIcons.orderAlphabeticalDescending,
+              color: pageState.sortType == SortType.chemical ? Colors.amber : Colors.white,
+            ),
             onPressed: () {
-              // TODO: Implement sorting logic
+              pageController.setSort(SortType.chemical);
             },
           ),
           IconButton(
