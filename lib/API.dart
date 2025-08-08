@@ -180,9 +180,9 @@ class ApiClient {
     });
   }
 
-  Future<void> updateSample(String jwt, {required Sample sample}) async {
+  Future<Map<String, dynamic>?> updateSample(String jwt, {required Sample sample}) async {
     // The original API seems to use POST for updates, which is unconventional.
-    await _post('samples', jwt: jwt, body: sample.toJson(), fromJson: (json) => null);
+    return await _post('samples', jwt: jwt, body: sample.toJson(), fromJson: (json) => json as Map<String, dynamic>?);
   }
 
   // --- Forms, Units, Hazards ---
