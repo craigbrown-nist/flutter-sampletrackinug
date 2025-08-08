@@ -45,15 +45,25 @@ class _BarcodeScannerWithControllerState
                 //   torchEnabled: true,
                 //   facing: CameraFacing.front,
                 // ),
-                onDetect: (barcode, args) {
-                  if (widget.single == 1) {
-                    setState(() {
-                      this.barcode = barcode.rawValue;
-                      Navigator.pop(context, barcode.rawValue);
-                      // Once complete lets go back to the calling page.
-                    });
-                  } else {
-                    barcodes!.add((barcode.rawValue.toString()));
+                onDetect: (capture) {
+                  final List<Barcode> barcodes = capture.barcodes;
+                  if (barcodes.isNotEmpty) {
+                    final barcode = barcodes.first;
+                    if (widget.single == 1) {
+                      // Only pop if the value is not null to avoid issues.
+                      if (barcode.rawValue != null) {
+                        setState(() {
+                          this.barcode = barcode.rawValue;
+                        });
+                        Navigator.pop(context, barcode.rawValue);
+                      }
+                    } else {
+                      if (barcode.rawValue != null) {
+                        // Ensure the list is initialized before adding to it.
+                        this.barcodes ??= [];
+                        this.barcodes!.add(barcode.rawValue!);
+                      }
+                    }
                   }
                 },
               ),
