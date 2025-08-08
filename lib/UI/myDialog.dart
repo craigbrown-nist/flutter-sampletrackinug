@@ -80,7 +80,7 @@ class _MyCellDialogState extends ConsumerState<MyCellDialog> {
                     final dynamic response = await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const BarcodeScannerWithController(single: 1),
+                        builder: (context) => BarcodeScannerWithController(single: 1),
                       ),
                     );
                     if (response != null && response is String) {

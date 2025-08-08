@@ -1,8 +1,15 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../API.dart';
+import '../../Functions/Server.dart';
+import '../../models/User.dart';
 import '../../providers.dart';
+import '../samples/sample_providers.dart';
 
 const _jwtKey = 'jwt';
 
@@ -14,10 +21,6 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   // so we will pass the ref to the repository to read it when needed.
   return AuthRepository(apiClient: apiClient, ref: ref);
 });
-
-import 'dart:convert';
-import '../../models/User.dart';
-import '../samples/sample_providers.dart';
 
 /// Provider that exposes the current authentication state (the JWT).
 /// UI widgets can listen to this to react to login/logout events.
@@ -73,14 +76,38 @@ class AuthRepository {
   Future<SharedPreferences> get _prefs async => await _ref.read(sharedPreferencesProvider.future);
 
   /// Tries to log in the user and saves the JWT if successful.
+  /// This method now uses a static http.post call to isolate a login bug.
   Future<void> login(String email, String password) async {
+    // This login endpoint is outside the standard /index.php path
+    final uri = Uri.parse('$SERVER_IP/sampletracking_test/login.php');
     try {
-      final jwt = await _apiClient.attemptLogIn(email, password);
-      await _saveJwt(jwt);
-      _ref.read(authStateProvider.notifier).state = jwt;
-    } catch (e) {
-      // The API client will throw a specific exception on failure.
-      // The UI layer can catch this and display an appropriate error.
+      final response = await http.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          "origin": "http://localhost" // As per original code
+        },
+        body: json.encode({'email': email, 'password': password}),
+      );
+
+      if (response.statusCode == 200) {
+        // The original API returns the JWT directly in the body.
+        final jwt = response.body;
+        if (jwt.isNotEmpty) {
+          await _saveJwt(jwt);
+          _ref.read(authStateProvider.notifier).state = jwt;
+        } else {
+           throw ApiException('Login failed: Server returned an empty response.', response.statusCode);
+        }
+      } else if (response.statusCode == 401) {
+        throw UnauthorizedException('Invalid credentials.');
+      }
+      else {
+        throw ApiException('Login failed', response.statusCode);
+      }
+    } on SocketException catch (e) {
+      throw NetworkException(e.message);
+    } catch(e) {
       rethrow;
     }
   }
