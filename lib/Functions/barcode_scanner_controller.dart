@@ -45,25 +45,15 @@ class _BarcodeScannerWithControllerState
                 //   torchEnabled: true,
                 //   facing: CameraFacing.front,
                 // ),
-                onDetect: (capture) {
-                  final List<Barcode> barcodes = capture.barcodes;
-                  if (barcodes.isNotEmpty) {
-                    final barcode = barcodes.first;
-                    if (widget.single == 1) {
-                      // Only pop if the value is not null to avoid issues.
-                      if (barcode.rawValue != null) {
-                        setState(() {
-                          this.barcode = barcode.rawValue;
-                        });
-                        Navigator.pop(context, barcode.rawValue);
-                      }
-                    } else {
-                      if (barcode.rawValue != null) {
-                        // Ensure the list is initialized before adding to it.
-                        this.barcodes ??= [];
-                        this.barcodes!.add(barcode.rawValue!);
-                      }
-                    }
+                onDetect: (barcode, args) {
+                  if (widget.single == 1) {
+                    setState(() {
+                      this.barcode = barcode.rawValue;
+                      Navigator.pop(context, barcode.rawValue);
+                      // Once complete lets go back to the calling page.
+                    });
+                  } else {
+                    barcodes!.add((barcode.rawValue.toString()));
                   }
                 },
               ),
@@ -79,18 +69,10 @@ class _BarcodeScannerWithControllerState
                     children: [
                       IconButton(
                         color: Colors.white,
-                        icon: ValueListenableBuilder(
+                        icon: ValueListenableBuilder<TorchState>(
                           valueListenable: controller.torchState,
                           builder: (context, state, child) {
-                            // ignore: unnecessary_null_comparison
-                            if (state == null) {
-                              return const Icon(
-                                Icons.flash_off,
-                                color: Colors.grey,
-                              );
-                            }
-                            // ignore: unnecessary_cast
-                            switch (state as TorchState) {
+                            switch (state) {
                               case TorchState.off:
                                 return const Icon(
                                   Icons.flash_off,
@@ -109,14 +91,17 @@ class _BarcodeScannerWithControllerState
                       ),
                       IconButton(
                         color: Colors.white,
-                        icon: isStarted
-                            ? const Icon(Icons.stop)
-                            : const Icon(Icons.play_arrow),
+                        icon: ValueListenableBuilder<bool>(
+                          valueListenable: controller.isStarting,
+                          builder: (context, state, child) {
+                            if (state) {
+                              return const Icon(Icons.stop);
+                            }
+                            return const Icon(Icons.play_arrow);
+                          },
+                        ),
                         iconSize: 32.0,
-                        onPressed: () => setState(() {
-                          isStarted ? controller.stop() : controller.start();
-                          isStarted = !isStarted;
-                        }),
+                        onPressed: () => controller.start(),
                       ),
                       Center(
                         child: SizedBox(
@@ -134,25 +119,22 @@ class _BarcodeScannerWithControllerState
                           ),
                         ),
                       ),
-                      // IconButton(
-                      //   color: Colors.white,
-                      //   icon: ValueListenableBuilder(
-                      //     valueListenable: controller.cameraFacingState,
-                      //     builder: (context, state, child) {
-                      //       if (state == null) {
-                      //         return const Icon(Icons.camera_front);
-                      //       }
-                      //       switch (state as CameraFacing) {
-                      //         case CameraFacing.front:
-                      //           return const Icon(Icons.camera_front);
-                      //         case CameraFacing.back:
-                      //           return const Icon(Icons.camera_rear);
-                      //       }
-                      //     },
-                      //   ),
-                      //   iconSize: 32.0,
-                      //   onPressed: () => controller.switchCamera(),
-                      // ),
+                      IconButton(
+                        color: Colors.white,
+                        icon: ValueListenableBuilder<CameraFacing>(
+                          valueListenable: controller.cameraFacingState,
+                          builder: (context, state, child) {
+                            switch (state) {
+                              case CameraFacing.front:
+                                return const Icon(Icons.camera_front);
+                              case CameraFacing.back:
+                                return const Icon(Icons.camera_rear);
+                            }
+                          },
+                        ),
+                        iconSize: 32.0,
+                        onPressed: () => controller.switchCamera(),
+                      ),
                       IconButton(
                         color: Colors.white,
                         icon: const Icon(Icons.image),
