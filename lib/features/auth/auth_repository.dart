@@ -15,6 +15,10 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(apiClient: apiClient, ref: ref);
 });
 
+import 'dart:convert';
+import '../../models/User.dart';
+import '../samples/sample_providers.dart';
+
 /// Provider that exposes the current authentication state (the JWT).
 /// UI widgets can listen to this to react to login/logout events.
 final authStateProvider = StateProvider<String?>((ref) {
@@ -22,6 +26,39 @@ final authStateProvider = StateProvider<String?>((ref) {
   // This is a simplified approach. A more robust solution would use a FutureProvider
   // to handle the async nature of reading from SharedPreferences.
   return null;
+});
+
+/// Decodes the JWT to get the user's email.
+/// NOTE: This is a simplified manual JWT decoder. For production, a robust
+/// library like `jwt_decode` should be used.
+final userEmailProvider = Provider<String?>((ref) {
+  final jwt = ref.watch(authStateProvider);
+  if (jwt == null) return null;
+
+  final parts = jwt.split('.');
+  if (parts.length != 3) return null;
+
+  try {
+    final payload = json.decode(utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))));
+    return payload['email'];
+  } catch (e) {
+    return null;
+  }
+});
+
+/// Provider to get the full User object for the currently logged-in user.
+final currentUserProvider = FutureProvider<User?>((ref) async {
+  final userEmail = ref.watch(userEmailProvider);
+  final allUsers = await ref.watch(allUsersProvider.future);
+
+  if (userEmail == null) return null;
+
+  try {
+    return allUsers.firstWhere((user) => user.email == userEmail);
+  } catch (e) {
+    // User not found in the list
+    return null;
+  }
 });
 
 

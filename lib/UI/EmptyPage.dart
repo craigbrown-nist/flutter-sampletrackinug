@@ -1,439 +1,121 @@
 import 'package:flutter/material.dart';
-import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
-import 'dart:convert';
-import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter/foundation.dart';
-import '../Functions/barcode_scanner_controller.dart';
-import 'adminNavDrawer.dart';
-import 'DetailPage.dart';
-import '../API.dart';
+
+import '../features/auth/auth_repository.dart';
+import '../features/samples/sample_providers.dart';
 import '../models/Sample.dart';
+import '../providers.dart';
+import 'DetailPage.dart';
 import 'Toast.dart';
-import '../main.dart';
+import 'adminNavDrawer.dart';
 
-class EmptyPage extends StatefulWidget {
+// --- State Management ---
+
+final emptyPageSelectionProvider = StateProvider<Set<String>>((ref) => {});
+
+// --- UI ---
+
+class EmptyPage extends ConsumerWidget {
   const EmptyPage({super.key});
-  @override
-  // ignore: library_private_types_in_public_api
-  _EmptyPageState createState() => _EmptyPageState();
-}
 
-class _EmptyPageState extends State<EmptyPage> {
-  bool somthingWrong = true;
-  var samples = List<Sample>.empty(growable: true);
-  var mysamples = List<Sample>.empty(growable: true);
-  var filteredSamples = List<Sample>.empty(growable: true);
+  Future<void> _emptySelectedSamples(BuildContext context, WidgetRef ref) async {
+    final selectedIds = ref.read(emptyPageSelectionProvider);
+    final samplesToEmpty = ref.read(samplesToEmptyProvider).value ?? [];
+    final jwt = ref.read(authStateProvider);
 
-  TextEditingController allcontroller2 = TextEditingController();
+    if (jwt == null || selectedIds.isEmpty) {
+      toast(context, "No samples selected.", Colors.orange);
+      return;
+    }
 
-  bool numlistforward = true;
-  bool chemlistforward = true;
-  String barcode = "";
-  bool selectingmode = false;
-  bool dialVisible = true;
+    final samplesToUpdate = samplesToEmpty.where((s) => selectedIds.contains(s.sampleId)).toList();
 
-  @override
-  initState() {
-    _getSamples();
-    setState(() {
-      filteredSamples = mysamples;
-    });
+    showDialog(context: context, builder: (context) => const Center(child: CircularProgressIndicator()), barrierDismissible: false);
 
-    ///
-    /// There is an overflow or something using all the data in the all-list.
-    /// Currently it works for all my individual samples - but I dont know where the hard limit is.
-    /// Is it the loaded data and just need to wait?
-    ///
-    allcontroller2.addListener(() {
-      if (allcontroller2.text.isEmpty) {
-        setState(() {
-          barcode = "";
-          filteredSamples = mysamples;
-        });
-      } else {
-        setState(() {
-          barcode = allcontroller2.text;
-          filteredSamples = [];
-          //print('Search text: ' + barcode);
-          for (var mysamples in mysamples) {
-            if (mysamples.sampleId!
-                    .toLowerCase()
-                    .contains(barcode.toLowerCase()) ||
-                mysamples.cellbarcode!
-                    .toLowerCase()
-                    .contains(barcode.toLowerCase())) {
-              // Since we are parsing every change to the 'search text' ensure this is not already in the list?
-              filteredSamples.add(mysamples);
-            }
-          }
-        });
+    try {
+      final List<Future<void>> updateFutures = [];
+      for (final sample in samplesToUpdate) {
+        // Update sample properties as per original logic
+        sample.place = "Lab";
+        sample.location = "B147";
+        sample.locationid = "Decision needed";
+        sample.drawer = "";
+        sample.cellbarcode = "";
+        sample.sampenvbarcode = "";
+        sample.date = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+        updateFutures.add(ref.read(apiClientProvider).updateSample(jwt, sample: sample));
       }
-    });
 
-    super.initState();
+      await Future.wait(updateFutures);
+
+      // Clear selection and refresh data
+      ref.read(emptyPageSelectionProvider.notifier).state = {};
+      ref.invalidate(samplesToEmptyProvider);
+      ref.invalidate(allSamplesProvider); // Invalidate this too as it's the source
+
+      Navigator.of(context).pop(); // pop loading indicator
+      toast(context, "Selected samples have been emptied.", Colors.green);
+
+    } catch (e) {
+      Navigator.of(context).pop(); // pop loading indicator
+      toast(context, "An error occurred: $e", Colors.red);
+    }
   }
 
   @override
-  dispose() {
-    allcontroller2.dispose();
-    super.dispose();
-  }
-
-  Future _refreshSamples() async {
-    // print('trying to refresh');
-    _getSamples();
-  }
-
-  void _getSamples() {
-    final container = MyInheritedWidget.of(context, false);
-//    API.getUserSamples(user).then((response) {
-    API.getSamples(container.getjwt).then((response) {
-      setState(() {
-        if (response.statusCode == 200) {
-          // print('Network response is good: ' + response.statusCode.toString());
-          Iterable list = json.decode(response.body);
-          samples = list.map((model) => Sample.fromJson(model)).toList();
-          samples.sort((a, b) => a.sampleId!.compareTo(b.sampleId!));
-          //samples.removeRange(0,
-          //    1); // Note we do this as there seems to be a '00000' in the database
-          // now trim the data to only those of the specified user from above
-
-          mysamples = (samples
-              .where((sample) => sample.locationid == "Ready to Unload")
-              .toList());
-
-          toast(context, 'Getting Samples to Empty', Colors.green);
-
-          somthingWrong = false;
-          if (mysamples.isEmpty) {
-            somthingWrong = true;
-            throw Exception('Failed to get any data: Do you have any samples?');
-          }
-        } else {
-          somthingWrong = true;
-          toast(context, 'No samples to empty!', Colors.red);
-          throw Exception('Failed to load data: Network issues?');
-        }
-        filteredSamples = mysamples;
-      });
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final topAppBar = PreferredSize(
-        preferredSize: const Size.fromHeight(100.0),
-        child: Stack(
-          children: <Widget>[
-            Container(
-              // Background
-              color: const Color.fromRGBO(158, 166, 186, 1.0),
-              height: MediaQuery.of(context).size.height * 0.15,
-              width: MediaQuery.of(context).size.width,
-              child: const Center(),
-            ),
-
-            Container(), // Required some widget in between to float AppBar
-
-            Positioned(
-              // To take AppBar Size only
-              top: 30,
-              left: 20.0,
-              right: 20.0,
-              child: AppBar(
-                elevation: 0.1,
-                iconTheme: const IconThemeData(
-                    color: Color.fromRGBO(158, 166, 186, 1.0)),
-                backgroundColor: Colors.white,
-                primary: false,
-                title: TextField(
-                    autocorrect: false,
-                    controller: allcontroller2,
-                    cursorColor: Colors.black,
-                    decoration: InputDecoration(
-                      hintText: barcode,
-                      border: InputBorder.none,
-                      hintStyle: const TextStyle(color: Colors.grey),
-                      suffixIcon: (barcode != "")
-                          ? Padding(
-                              padding:
-                                  const EdgeInsetsDirectional.only(start: 1.0),
-                              child: (selectingmode)
-                                  ? IconButton(
-                                      icon: const Icon(Icons.cancel),
-                                      onPressed: () {
-                                        setState(() {
-                                          selectingmode = false;
-                                          barcode = "";
-                                          for (var p in filteredSamples) {
-                                            p.selected = false;
-                                          }
-                                        });
-                                      },
-                                    )
-                                  : IconButton(
-                                      iconSize: 16.0,
-                                      icon: const Icon(
-                                        Icons.cancel,
-                                        color: Colors.black,
-                                      ),
-                                      onPressed: () {
-                                        setState(() {
-                                          filteredSamples = mysamples;
-                                          allcontroller2.clear();
-                                        });
-                                      }),
-                            )
-                          : null,
-                    )),
-                actions: (defaultTargetPlatform == TargetPlatform.iOS ||
-                        defaultTargetPlatform == TargetPlatform.android)
-                    ? <Widget>[
-                        IconButton(
-                            icon: const Icon(
-                              MdiIcons.qrcodeScan,
-                              color: Colors.blue,
-                            ),
-                            onPressed: () async {
-                              const single = 1;
-                              final dynamic response = await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) =>
-                                          const BarcodeScannerWithController(
-                                              single: single)));
-                              setState(() => allcontroller2 = response);
-                            }),
-                        // if (barcode != "") {
-                        //   IconButton(
-                        //     icon: Icon(Icons.cancel,color: Color.fromRGBO(158, 166, 186, 1.0),), onPressed:()=> clearSearch(),),
-                        // }
-                      ]
-                    : null,
-              ),
-            )
-          ],
-        ));
-
-    // ignore: avoid_unnecessary_containers
-    final makeBody = Container(
-        child: Stack(
-      children: <Widget>[
-        RefreshIndicator(
-          onRefresh: _refreshSamples,
-          child: ListView.separated(
-            itemCount: filteredSamples.length,
-            itemBuilder: (context, index) {
-              return Ink(
-                  color: (filteredSamples[index].selected!)
-                      ? Colors.blue[200]
-                      : Colors.transparent,
-                  child: ListTile(
-                    leading: Text(
-                        (int.parse(filteredSamples[index].sampleId!.toString()))
-                            .toString()),
-                    title: Text(filteredSamples[index].chemical.toString(),
-                        style: (filteredSamples[index].haz1 == "" ||
-                                filteredSamples[index].haz1 != null)
-                            ? const TextStyle(color: Colors.red)
-                            : const TextStyle(color: Colors.black)),
-                    trailing: (selectingmode)
-                        ? ((filteredSamples[index].selected)!)
-                            ? const Icon(Icons.check_box)
-                            : const Icon(Icons.check_box_outline_blank)
-                        : const Icon(Icons.keyboard_arrow_right),
-                    onTap: () {
-                      setState(() {
-                        if (selectingmode) {
-                          filteredSamples[index].selected =
-                              !filteredSamples[index].selected!;
-                          // print("sample ID: " +
-                          //     filteredSamples[index].sampleId.toString());
-                        } else {
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => DetailPage(
-                                      sample: filteredSamples[index])));
-                        }
-                      });
-                      // FocusScopeNode currentFocus = FocusScope.of(context);
-                      // if (!currentFocus.hasPrimaryFocus) {
-                      //   currentFocus.unfocus();
-                      // }
-                    },
-                    onLongPress: () {
-                      setState(() {
-                        selectingmode = true;
-                        allcontroller2.text = "";
-                        barcode = "Cancel multiselect ->";
-                        filteredSamples[index].selected =
-                            !filteredSamples[index].selected!;
-                      });
-                    },
-                    selected: filteredSamples[index].selected!,
-                  ));
-            },
-            separatorBuilder: (context, index) {
-              return const Divider(
-                color: Colors.black,
-              );
-            },
-          ),
-        ),
-      ],
-    ));
-
-    final makeBottom = SizedBox(
-      height: 55.0,
-      child: BottomAppBar(
-        color: const Color.fromRGBO(158, 166, 186, 1.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: <Widget>[
-            IconButton(
-              icon: const Icon(MdiIcons.orderNumericDescending, color: Colors.white),
-              // Here we can reorder the lists
-              onPressed: () {
-                setState(() {
-                  if (numlistforward == false) {
-                    filteredSamples
-                        .sort((a, b) => a.sampleId!.compareTo(b.sampleId!));
-                    numlistforward = true;
-                  } else {
-                    filteredSamples
-                        .sort((a, b) => a.sampleId!.compareTo(b.sampleId!));
-                    var reversedList = filteredSamples.reversed.toList();
-                    filteredSamples = reversedList;
-                    numlistforward = false;
-                  }
-                });
-              },
-            ),
-            IconButton(
-              icon: const Icon(MdiIcons.orderAlphabeticalDescending,
-                  color: Colors.white),
-              onPressed: () {
-                setState(() {
-                  if (chemlistforward == false) {
-                    filteredSamples.sort((a, b) => (a.chemical!)
-                        .toLowerCase()
-                        .compareTo(b.chemical!.toLowerCase()));
-                    chemlistforward = true;
-                  } else {
-                    filteredSamples.sort((a, b) => (a.chemical!)
-                        .toLowerCase()
-                        .compareTo(b.chemical!.toLowerCase()));
-                    var reversedList = filteredSamples.reversed.toList();
-                    filteredSamples = reversedList;
-                    chemlistforward = false;
-                  }
-                });
-              },
-            ),
-            IconButton(
-              icon: const Icon(MdiIcons.recycle, color: Colors.white),
-              onPressed: () {
-                setState(() {
-                  _refreshSamples();
-                });
-              },
-            ),
-          ],
-        ),
-      ),
-    );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final samplesAsync = ref.watch(samplesToEmptyProvider);
+    final selectedIds = ref.watch(emptyPageSelectionProvider);
 
     return Scaffold(
-      drawer: adminNavDrawer(context),
-      appBar: topAppBar,
-      body: makeBody,
-      bottomNavigationBar: makeBottom,
-      floatingActionButton: FloatingActionButton(
-          child: const Icon(MdiIcons.flaskEmptyMinus),
-          onPressed: () {
-            //check if
-            final container = MyInheritedWidget.of(context, false);
-            for (var p in filteredSamples) {
-              if (p.selected == true) {
-                // // (1) tell database the cell is free
-                // if (p.cellbarcode != "" ||
-                //     p.cellbarcode != " " ||
-                //     p.cellbarcode != null) {
-                //   final myFuture = API.getThisCan(p.cellbarcode);
-                //   myFuture.then((response) {
-                //     if (response.statusCode == 200) {
-                //       try {
-                //         Map<String, dynamic> list = json.decode(response.body);
-                //         // can is in the database
-                //         print(list[0].toString());
-                //       } on Error {
-                //         // A few things have/can be wrong if here.
-                //         // 1 there is no ID for this cell
-                //         // 2 The cell is not in the database.
-                //         //  so lets add it.
-                //         if (p.cellbarcode.toString() != "" ||
-                //             p.cellbarcode != null) {
-                //           //determine what type of cell:
-                //           var bc = p.cellbarcode;
-                //           String celltype = GetCellType(bc);
-                //           final myFuture1 = API.addNewCell(
-                //               barcode: bc, description: celltype);
-                //           myFuture1.then((response) {
-                //             if (response == 200) {
-                //               print('cell added');
-                //             }
-                //           });
-                //         }
-                //       }
-                //     }
-                //   });
-                // }
-
-                // (2) move the sample to Decision needed
-                // print("Moving sample to Lab/B-147/decision needed");
-                if (p.place != "Lab") {
-                  p.place = "Lab";
-                }
-                if (p.place != "B147") {
-                  p.place = "B147";
-                }
-                if (p.place != "Decision needed") {
-                  p.place = "Decision needed";
-                }
-                if (p.place != "Drawer") {
-                  p.place = "";
-                }
-
-                // (3) ensure sample and environment is blank
-                p.cellbarcode = "";
-                p.sampenvbarcode = "";
-                p.parent = "0";
-                p.date =
-                    DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-                //update
-                final myFuture = API.updateSample(container.getjwt, sample: p);
-                // print(p.sampleId);
-                myFuture.then((response) {
-                  if (response != null) {
-                    print('sample updated');
-                  }
-                });
-              }
+      drawer: const AppDrawer(),
+      appBar: AppBar(title: const Text('Empty Samples')),
+      body: RefreshIndicator(
+        onRefresh: () => ref.refresh(samplesToEmptyProvider.future),
+        child: samplesAsync.when(
+          data: (samples) {
+            if (samples.isEmpty) {
+              return const Center(child: Text("No samples are 'Ready to Unload'."));
             }
-            // remove selected items from list.
-            filteredSamples.removeWhere((sample) => sample.selected == true);
-
-            setState(() {
-              allcontroller2.clear();
-              selectingmode = false;
-              barcode = "";
-            });
-
-            toast(context, "Samples Emptied!", Colors.green);
-          }),
+            return ListView.builder(
+              itemCount: samples.length,
+              itemBuilder: (context, index) {
+                final sample = samples[index];
+                final isSelected = selectedIds.contains(sample.sampleId);
+                return Container(
+                  color: isSelected ? Colors.blue.withOpacity(0.3) : Colors.transparent,
+                  child: ListTile(
+                    title: Text(sample.chemical ?? 'No Name'),
+                    subtitle: Text('ID: ${sample.sampleId}'),
+                    trailing: const Icon(Icons.keyboard_arrow_right),
+                    onTap: () {
+                      final currentSelection = Set<String>.from(selectedIds);
+                      if (isSelected) {
+                        currentSelection.remove(sample.sampleId);
+                      } else {
+                        currentSelection.add(sample.sampleId!);
+                      }
+                      ref.read(emptyPageSelectionProvider.notifier).state = currentSelection;
+                    },
+                    onLongPress: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => DetailPage(sample: sample)));
+                    },
+                  ),
+                );
+              },
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, stack) => Center(child: Text("Error loading samples: $err")),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: selectedIds.isEmpty ? null : () => _emptySelectedSamples(context, ref),
+        backgroundColor: selectedIds.isEmpty ? Colors.grey : Theme.of(context).primaryColor,
+        child: const Icon(Icons.check),
+      ),
     );
   }
 }

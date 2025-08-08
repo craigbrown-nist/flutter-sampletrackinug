@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_samples/providers.dart';
 
 import '../../API.dart';
 import '../../models/Cells.dart';
@@ -50,6 +51,12 @@ final allUsersProvider = FutureProvider<List<User>>((ref) async {
   final apiClient = ref.watch(apiClientProvider);
   final jwt = ref.watch(_jwtProvider);
   return apiClient.getUsers(jwt);
+});
+
+final samplesToEmptyProvider = FutureProvider<List<Sample>>((ref) async {
+  // This provider depends on the result of allSamplesProvider
+  final allSamples = await ref.watch(allSamplesProvider.future);
+  return allSamples.where((s) => s.locationid == "Ready to Unload").toList();
 });
 
 final formsProvider = FutureProvider<List<FormsOfSample>>((ref) async {
