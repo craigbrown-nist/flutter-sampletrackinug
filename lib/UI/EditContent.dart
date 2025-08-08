@@ -275,8 +275,8 @@ class _EditContentState extends ConsumerState<EditContent> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  ElevatedButton(onPressed: () => _pickImage(ImageSource.gallery), child: const Text("From Gallery")),
-                  ElevatedButton(onPressed: () => _pickImage(ImageSource.camera), child: const Text("From Camera")),
+                  ElevatedButton(onPressed: () => _pickAndResizeImage(ImageSource.gallery), child: const Text("From Gallery")),
+                  ElevatedButton(onPressed: () => _pickAndResizeImage(ImageSource.camera), child: const Text("From Camera")),
                 ],
               ),
               const SizedBox(height: 40),
