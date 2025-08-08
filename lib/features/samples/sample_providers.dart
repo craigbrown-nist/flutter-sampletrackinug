@@ -4,7 +4,7 @@ import '../../API.dart';
 import '../../models/Cells.dart';
 import '../../models/Forms.dart';
 import '../../models/Hazards.dart';
-import '../../models/Sample.dart';
+import '../../models/Sample.dart' hide Hazards;
 import '../../models/Units.dart';
 import '../../models/User.dart';
 import '../auth/auth_repository.dart';

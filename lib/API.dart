@@ -7,7 +7,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
 
 import 'Functions/Server.dart';
-import 'models/Sample.dart';
+import 'models/Sample.dart' hide Hazards;
 import 'models/Cells.dart';
 import 'models/Forms.dart';
 import 'models/Hazards.dart';
