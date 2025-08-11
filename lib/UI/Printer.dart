@@ -15,17 +15,12 @@ class PrinterPage extends StatefulWidget {
 
 class _PrinterState extends State<PrinterPage> {
   InAppWebViewController? webViewController;
-  InAppWebViewGroupOptions options = InAppWebViewGroupOptions(
-      crossPlatform: InAppWebViewOptions(
-        useShouldOverrideUrlLoading: false,
+  InAppWebViewSettings options = InAppWebViewSettings(
+          useShouldOverrideUrlLoading: false,
         mediaPlaybackRequiresUserGesture: false,
-      ),
-      android: AndroidInAppWebViewOptions(
         useHybridComposition: true,
-      ),
-      ios: IOSInAppWebViewOptions(
         allowsInlineMediaPlayback: false,
-      ));
+      );
 
   var url = "$SERVER_IP/sampletracking_test/samples_highbay.php";
   double progress = 0;
@@ -114,7 +109,7 @@ class _PrinterState extends State<PrinterPage> {
                 final ttt = urlList[index].toString();
                 print('list: $ttt');
                 webViewController?.loadUrl(
-                    urlRequest: URLRequest(url: Uri.parse(ttt)));
+                    urlRequest: URLRequest(url: WebUri(ttt)));
                 // print(urlList[index]);
                 //_click(urlList[index]);
               },
@@ -141,13 +136,10 @@ class _PrinterState extends State<PrinterPage> {
                 decoration:
                     BoxDecoration(border: Border.all(color: Colors.blueAccent)),
                 child: InAppWebView(
-                  initialUrlRequest: URLRequest(url: Uri.parse(url)),
-                  initialOptions: InAppWebViewGroupOptions(
-                      crossPlatform: InAppWebViewOptions(
-                    //useShouldOverrideUrlLoading: true,
-                    //debuggingEnabled: true,
+                  initialUrlRequest: URLRequest(url: WebUri(url)),
+                  initialSettings: InAppWebViewSettings(
                     javaScriptEnabled: true,
-                  )),
+                  ),
                   onWebViewCreated: (InAppWebViewController controller) {
                     webViewController = controller;
                   },

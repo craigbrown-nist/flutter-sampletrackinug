@@ -1,208 +1,133 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_samples/features/samples/sample_providers.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
-import '../Functions/barcode_scanner_controller.dart';
-import 'dart:convert';
-import '../main.dart';
-import '../API.dart';
-import '../models/Cells.dart';
-import '../Functions/func.dart';
-import 'Toast.dart';
 
-class MyCellDialog extends StatefulWidget {
+import '../features/auth/auth_repository.dart'; 
+import '../features/cells/cells_page_state.dart';
+import '../providers.dart';
+import 'Toast.dart';
+// Note: BarcodeScannerWithController would also need refactoring in a full project rewrite.
+import '../Functions/barcode_scanner_controller.dart';
+
+class MyCellDialog extends ConsumerStatefulWidget {
   const MyCellDialog({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
   _MyCellDialogState createState() => _MyCellDialogState();
 }
 
-class _MyCellDialogState extends State<MyCellDialog> {
-  bool exec = true;
+class _MyCellDialogState extends ConsumerState<MyCellDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _barcodeController = TextEditingController();
 
-  String selected = "";
-  String barcode = "";
+  // The list of cell types is now defined statically in the CellsPageState
+  String _selectedCellType = CellsPageState.cellTypes[0];
 
   @override
-  initState() {
-    controller.addListener(() {
-      if (controller.text.isEmpty) {
-        setState(() {
-          barcode = "";
-        });
-      } else {
-        barcode = controller.text;
-        if (barcode.length >= 5) {
-          //check first few values to suggest a drop down
-          String celltype = getCellType(barcode);
-          setState(() {
-            selected = celltype;
-          });
-        }
-      }
-    });
-    super.initState();
+  void dispose() {
+    _barcodeController.dispose();
+    super.dispose();
   }
 
-  /// new controller for help with scanning QR codes
-  TextEditingController controller = TextEditingController();
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
-  @override
-  dispose() {
-    controller.dispose();
-    super.dispose();
+    final jwt = ref.read(authStateProvider);
+    if (jwt == null) {
+      toast(context, "Error: Not logged in", Colors.red);
+      return;
+    }
+
+    try {
+      await ref.read(apiClientProvider).addNewCell(
+        jwt,
+        barcode: _barcodeController.text,
+        description: _selectedCellType,
+      );
+
+      // Invalidate providers to trigger a refresh on the previous screen
+      ref.invalidate(fullCellsProvider);
+      ref.invalidate(emptyCellsProvider);
+
+      toast(context, "Cell added successfully", Colors.green);
+      Navigator.of(context).pop();
+
+    } catch (e) {
+      toast(context, "Error adding cell: $e", Colors.red);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final container = MyInheritedWidget.of(context, false);
-    final formKey = GlobalKey<FormState>();
-
-    if (exec) {
-      selected = container.cellTypes[4];
-      exec = false;
-    }
-
     return AlertDialog(
-      content: Stack(
-        clipBehavior: Clip.none,
-        children: <Widget>[
-          Positioned(
-            right: -40.0,
-            top: -40.0,
-            child: InkResponse(
-              onTap: () {
-                Navigator.of(context).pop();
-              },
-              child: const CircleAvatar(
-                backgroundColor: Colors.blue,
-                child: Icon(Icons.close),
+      contentPadding: const EdgeInsets.all(16.0),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            TextFormField(
+              controller: _barcodeController,
+              autocorrect: false,
+              decoration: InputDecoration(
+                labelText: 'Barcode',
+                suffixIcon: IconButton(
+                  icon:   Icon(MdiIcons.qrcodeScan, color: Colors.blue),
+                  onPressed: () async {
+                    final dynamic response = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MobileScannerPicklist(single: 1),
+                      ),
+                    );
+                    if (response != null && response is String) {
+                      _barcodeController.text = response;
+                    }
+                  },
+                ),
               ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Barcode cannot be empty';
+                }
+                return null;
+              },
             ),
-          ),
-          Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: TextField(
-                      autocorrect: false,
-                      controller: controller,
-                      cursorColor: Colors.black,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: Colors.grey[200],
-                        hintText: barcode,
-                        hintStyle: const TextStyle(color: Colors.grey),
-                        suffixIcon: (barcode != "")
-                            ? Padding(
-                                padding: const EdgeInsetsDirectional.only(
-                                    start: 1.0),
-                                child: IconButton(
-                                    iconSize: 16.0,
-                                    icon: const Icon(
-                                      Icons.cancel,
-                                      color: Colors.black,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        controller.clear();
-                                      });
-                                    }),
-                              )
-                            : Padding(
-                                padding: const EdgeInsetsDirectional.only(
-                                    start: 1.0),
-                                child: IconButton(
-                                    iconSize: 16.0,
-                                    icon: const Icon(
-                                      MdiIcons.qrcodeScan,
-                                      color: Colors.blue,
-                                    ),
-                                    onPressed: () async {
-                                      // this probably breaks windows and mac.
-                                      try {
-                                        const single = 1;
-                                        final dynamic response =
-                                            await Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                    builder: (context) =>
-                                                        const BarcodeScannerWithController(
-                                                            single: single)));
-                                        controller.text = response;
-                                      } on Exception catch (error) {
-                                        print(error);
-                                      }
-                                    }),
-                              ),
-                      )),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: DropdownButtonFormField<String>(
-                    value: selected,
-                    items: container.cellTypes
-                        .map<DropdownMenuItem<String>>((label) {
-                      return DropdownMenuItem<String>(
-                        value: label,
-                        child: Text(label),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() => selected = value!);
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (formKey.currentState!.validate()) {
-                        formKey.currentState!.save();
-                        final myFuture1 = API.addNewCell(container.getjwt,
-                            barcode: barcode, description: selected);
-                        myFuture1.then((response) {
-                          if (response == 200) {
-                            // Get the new cell as an object
-                            final myFuture =
-                                API.getThisCan(barcode, container.getjwt);
-                            myFuture.then((response) {
-                              if (response.statusCode == 200) {
-                                var newCells =
-                                    List<Cells>.empty(growable: true);
-                                Iterable list = json.decode(response.body);
-                                newCells = list
-                                    .map((model) => Cells.fromJson(model))
-                                    .toList();
-                                addToEmptyCells(
-                                    // ignore: use_build_context_synchronously
-                                    context: context, cell: newCells[0]);
-                                // need to add to appropriate list and increment total #
-                              }
-                            });
-                          }
-                        });
-
-                        toast(context, "Cell added", Colors.green);
-
-                        Navigator.of(context, rootNavigator: true)
-                            .pop('dialog');
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                    ),
-                    child:
-                        const Text("Submit", style: TextStyle(color: Colors.white)),
-                  ),
-                )
-              ],
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              value: _selectedCellType,
+              items: CellsPageState.cellTypes.map((label) {
+                return DropdownMenuItem<String>(
+                  value: label,
+                  child: Text(label),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _selectedCellType = value);
+                }
+              },
+              decoration: const InputDecoration(labelText: 'Cell Type'),
             ),
-          ),
-        ],
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _submit,
+              child: const Text("Submit"),
+            ),
+          ],
+        ),
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+      ],
     );
   }
 }
+
+ 

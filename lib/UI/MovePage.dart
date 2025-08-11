@@ -19,7 +19,7 @@ class MovePageState extends State<MovePage> {
       appBar: AppBar(
         title: Text("Moving Sample ID: ${int.parse(widget.sample.sampleId.toString())}"),
       ),
-      body: MoveContent(sample: widget.sample, status: status),
+      body: MoveContent(sample: widget.sample),
       //body: EditContent(sample: new  Sample(), status: "new"),
     );
   }
