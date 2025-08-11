@@ -7,9 +7,7 @@ import 'package:material_design_icons_flutter/material_design_icons_flutter.dart
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
-import '../Functions/barcode_scanner_controller.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:image/image.dart' as img;
+import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -22,27 +20,37 @@ import 'data.dart';
 ///This could be StatelessWidget but it won't work on Dialogs for now until this issue is fixed: https://github.com/flutter/flutter/issues/45839
 /// I think I prefer the stateful widget: I need to call values anyway.
 
-class EditContent extends StatefulWidget {
+class EditContentWin extends StatefulWidget {
   /// passed in values
   /// Need to check if these are set-if not dafault to empty new sample, and status = new
 
   final Sample? sample;
   final String status;
 
-  const EditContent({super.key, this.sample, required this.status});
+  const EditContentWin({super.key, this.sample, required this.status});
 
   /// @override is not neccesary, but indicates we want to do this purposefully
   @override
   // ignore: library_private_types_in_public_api
-  _EditContentState createState() => _EditContentState();
+  _EditContentWinState createState() => _EditContentWinState();
 }
 
-class _EditContentState extends State<EditContent> {
+class _EditContentWinState extends State<EditContentWin> {
   @override
   noSuchMethod(Invocation i) => super.noSuchMethod(i);
 
-  final picker = ImagePicker();
   bool changedImage = false;
+
+  /// windows cameras:
+  String _cameraInfo = 'Unknown';
+  List<CameraDescription> _cameras = <CameraDescription>[];
+  int _cameraIndex = 0;
+  int _cameraId = -1;
+  bool _initialized = false;
+  Size? _previewSize;
+  final ResolutionPreset _resolutionPreset = ResolutionPreset.veryHigh;
+  StreamSubscription<CameraErrorEvent>? _errorStreamSubscription;
+  StreamSubscription<CameraClosingEvent>? _cameraClosingStreamSubscription;
 
   /// need a class for the focusnode to operate between each widget.
   final FocusNode _nodeText1 = FocusNode();
@@ -61,6 +69,223 @@ class _EditContentState extends State<EditContent> {
   initState() {
     setState(() {});
     super.initState();
+    WidgetsFlutterBinding.ensureInitialized();
+    _fetchCameras();
+  }
+
+  @override
+  void dispose() {
+    _disposeCurrentCamera();
+    _errorStreamSubscription?.cancel();
+    _errorStreamSubscription = null;
+    _cameraClosingStreamSubscription?.cancel();
+    _cameraClosingStreamSubscription = null;
+    super.dispose();
+  }
+
+////////////////////////////////////////////////////////////////////////////
+  /// Fetches list of available cameras from camera_windows plugin.
+  Future<void> _fetchCameras() async {
+    String cameraInfo;
+    List<CameraDescription> cameras = <CameraDescription>[];
+
+    int cameraIndex = 0;
+    try {
+      cameras = await CameraPlatform.instance.availableCameras();
+      if (cameras.isEmpty) {
+        cameraInfo = 'No available cameras';
+        print('No cameras available');
+      } else {
+        cameraIndex = _cameraIndex % cameras.length;
+        cameraInfo = 'Found camera: ${cameras[cameraIndex].name}';
+      }
+    } on PlatformException catch (e) {
+      cameraInfo = 'Failed to get cameras: ${e.code}: ${e.message}';
+    }
+
+    if (mounted) {
+      setState(() {
+        _cameraIndex = cameraIndex;
+        _cameras = cameras;
+        _cameraInfo = cameraInfo;
+      });
+    }
+  }
+
+  /// Initializes the camera on the device.
+  Future<void> _initializeCamera() async {
+    assert(!_initialized);
+
+    if (_cameras.isEmpty) {
+      return;
+    }
+
+    int cameraId = -1;
+    try {
+      final int cameraIndex = _cameraIndex % _cameras.length;
+      final CameraDescription camera = _cameras[cameraIndex];
+
+      cameraId = await CameraPlatform.instance.createCamera(
+        camera,
+        _resolutionPreset,
+      );
+
+      _errorStreamSubscription?.cancel();
+      _errorStreamSubscription = CameraPlatform.instance
+          .onCameraError(cameraId)
+          .listen(_onCameraError);
+
+      _cameraClosingStreamSubscription?.cancel();
+      _cameraClosingStreamSubscription = CameraPlatform.instance
+          .onCameraClosing(cameraId)
+          .listen(_onCameraClosing);
+
+      final Future<CameraInitializedEvent> initialized =
+          CameraPlatform.instance.onCameraInitialized(cameraId).first;
+
+      await CameraPlatform.instance.initializeCamera(
+        cameraId,
+        imageFormatGroup: ImageFormatGroup.unknown,
+      );
+
+      final CameraInitializedEvent event = await initialized;
+      _previewSize = Size(
+        event.previewWidth,
+        event.previewHeight,
+      );
+
+      if (mounted) {
+        setState(() {
+          print("Here");
+          _initialized = true;
+          _cameraId = cameraId;
+          _cameraIndex = cameraIndex;
+          _cameraInfo = 'Capturing camera: ${camera.name}';
+          print('Capturing camera: ${camera.name}');
+        });
+      }
+    } on CameraException catch (e) {
+      try {
+        if (cameraId >= 0) {
+          await CameraPlatform.instance.dispose(cameraId);
+        }
+      } on CameraException catch (e) {
+        debugPrint('Failed to dispose camera: ${e.code}: ${e.description}');
+      }
+
+      // Reset state.
+      if (mounted) {
+        _disposeCurrentCamera();
+        setState(() {
+          _initialized = false;
+          _cameraId = -1;
+          _cameraIndex = 0;
+          _previewSize = null;
+          _cameraInfo =
+              'Failed to initialize camera: ${e.code}: ${e.description}';
+        });
+      }
+      try {
+        await CameraPlatform.instance.dispose(_cameraId);
+
+        if (mounted) {
+          setState(() {
+            _initialized = false;
+            _cameraId = -1;
+            _previewSize = null;
+            _cameraInfo = 'Camera disposed';
+          });
+        }
+      } on CameraException catch (e) {
+        if (mounted) {
+          setState(() {
+            _cameraInfo =
+                'Failed to dispose camera: ${e.code}: ${e.description}';
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _disposeCurrentCamera() async {
+    if (_cameraId >= 0 && _initialized) {
+      try {
+        await CameraPlatform.instance.dispose(_cameraId);
+
+        if (mounted) {
+          setState(() {
+            _initialized = false;
+            _cameraId = -1;
+            _previewSize = null;
+            _cameraInfo = 'Camera disposed';
+          });
+        }
+      } on CameraException catch (e) {
+        if (mounted) {
+          setState(() {
+            _cameraInfo =
+                'Failed to dispose camera: ${e.code}: ${e.description}';
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _takePicture(context) async {
+    // lets init the camera if available
+    print('Found camera in taking pacture function: $_cameraInfo');
+    if (_cameras.isEmpty) {
+      await _fetchCameras();
+    }
+    if (_cameras.isNotEmpty) {
+      await _initializeCamera();
+    }
+
+    // overlay preview here for 3 seconds the take photo and close
+    if (_initialized) {
+      _showOverlay(context);
+    }
+  }
+
+  Future<void> _takePicture2(context) async {
+    final XFile file = await CameraPlatform.instance.takePicture(_cameraId);
+    print('taking picture ${file.path}');
+
+    var image = File(file.path);
+
+    setState(() {
+      _image = image;
+      changedImage = true;
+    });
+
+    await _disposeCurrentCamera();
+  }
+
+  void _onCameraError(CameraErrorEvent event) {
+    if (mounted) {
+      print('Error: ${event.description}');
+
+      // Dispose camera on camera error as it can not be used anymore.
+      _disposeCurrentCamera();
+      _fetchCameras();
+    }
+  }
+
+  void _onCameraClosing(CameraClosingEvent event) {
+    if (mounted) {
+      print('Camera is closing');
+    }
+  }
+
+  Widget _buildPreview() {
+    return CameraPlatform.instance.buildPreview(_cameraId);
+  }
+////////////////////////////////////////////////////////////////////////////
+
+  Image getImageFileFromWindows(String path) {
+    File imageFile = File(path);
+    final image = Image.file(imageFile);
+    return image;
   }
 
   Future<File> getImageFileFromAssets(String image) async {
@@ -71,22 +296,6 @@ class _EditContentState extends State<EditContent> {
     return file;
   }
 
-  Future<File> resizeImage(File imageFile, int maxWidth) async {
-    final img.Image? originalImage =
-        img.decodeImage(await imageFile.readAsBytes());
-    if (originalImage == null) {
-      throw Exception('Failed to decode image');
-    }
-
-    final resizedImage = img.copyResize(originalImage, width: maxWidth);
-    final resizedBytes = img.encodePng(resizedImage);
-
-    final resizedFile = File('${imageFile.path}_resized.png');
-    await resizedFile.writeAsBytes(resizedBytes);
-
-    return resizedFile;
-  }
-
   void openGallery() async {
     FilePickerResult? result =
         await FilePicker.platform.pickFiles(type: FileType.image);
@@ -94,60 +303,93 @@ class _EditContentState extends State<EditContent> {
     if (result != null) {
       if (result.files.first.path != null) {
         File image = File(result.files.first.path!);
-        final resizedImage = await resizeImage(image, 1000);
-
         setState(() {
           _image = File(image.path);
-          _image = resizedImage;
+          _image = image;
           changedImage = true;
         });
       }
     }
-
-    // if (Platform.isIOS || Platform.isAndroid) {
-    //   final image = await picker.pickImage(
-    //     source: ImageSource.gallery,
-    //     maxWidth: 800,
-    //     maxHeight: 800,
-    //     imageQuality: 30,
-    //   );
-    //   if (image != null) {
-    //     setState(() {
-    //       this._image = File(image.path);
-    //       changedImage = true;
-    //     });
-    //   }
-    // } else {
-    //   try {
-    //     final result = await pickFiles(
-    //         allowMultiple: false,
-    //         type: FileType.custom,
-    //         allowedExtensions: ['jpg', 'png', 'gif']);
-    //     if (result != null) {
-    //       setState(() {
-    //         this._image = File(result.files.single.path.toString());
-    //         changedImage = true;
-    //       });
-    //     }
-    //   } catch (e) {
-    //     print(e);
-    //   }
-    // }
   }
 
-  void openCamera() async {
-    var image = await picker.pickImage(
-      source: ImageSource.camera,
-      maxWidth: 800,
-      maxHeight: 800,
-      imageQuality: 30,
-    );
-    if (image != null) {
-      setState(() {
-        _image = File(image.path);
-        changedImage = true;
-      });
-    }
+  void _showOverlay(BuildContext context) async {
+    // Declaring and Initializing OverlayState
+    // and OverlayEntry objects
+    OverlayState? overlayState = Overlay.of(context);
+    OverlayEntry? overlayEntry;
+
+    overlayEntry = OverlayEntry(builder: (context) {
+      // You can return any widget you like here
+      // to be displayed on the Overlay
+      return Positioned(
+        left: MediaQuery.of(context).size.width * 0.1,
+        top: MediaQuery.of(context).size.height * 0.1,
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.8,
+          child: Stack(
+            children: <Widget>[
+              const Padding(
+                padding: EdgeInsets.symmetric(
+                  vertical: 5,
+                  horizontal: 10,
+                ),
+                child: Text(""),
+              ),
+              const SizedBox(height: 5),
+              if (_cameraId > 0 && _previewSize != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 5,
+                  ),
+                  child: Align(
+                    alignment: Alignment.center,
+                    child: Container(
+                      constraints: const BoxConstraints(
+                        maxHeight: 500,
+                      ),
+                      child: AspectRatio(
+                        aspectRatio: _previewSize!.width / _previewSize!.height,
+                        child: _buildPreview(),
+                      ),
+                    ),
+                  ),
+                ),
+              Positioned(
+                top: 450,
+                left: 20,
+                child: ElevatedButton(
+                  onPressed: () {
+                    _disposeCurrentCamera();
+                    overlayEntry?.remove();
+                  },
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20)),
+                  child: const Text('Close'),
+                ),
+              ),
+              Positioned(
+                top: 450,
+                left: 800,
+                child: ElevatedButton(
+                    onPressed: () {
+                      _takePicture2(context);
+                      overlayEntry?.remove();
+                    },
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20)),
+                    child: const Text('Take Picture and Close ')),
+              )
+            ],
+          ),
+        ),
+      );
+    });
+
+    // Inserting the OverlayEntry into the Overlay
+    overlayState.insert(overlayEntry);
+    //Timer(Duration(seconds: 1), () => overlayEntry?.remove());
   }
 
   /// Creates the [KeyboardActionsConfig] to hook up the fields
@@ -320,9 +562,6 @@ class _EditContentState extends State<EditContent> {
   bool exec =
       true; // this is just to set the values to default to the sample values once on widget build
 
-  final textControllerCell = TextEditingController();
-  final textControllerSE = TextEditingController();
-
   final GlobalKey<FormBuilderState> _fbKey = GlobalKey<FormBuilderState>();
 
   @override
@@ -350,10 +589,10 @@ class _EditContentState extends State<EditContent> {
     /// i.e. execute once to set radio button units based on input sample or simple defaults.
     /// Will throw an error accessing widget.sample if it is empty!
     if (exec) {
-      var pp = true;
+      var pp = false;
       origId = widget.sample!.sampleId.toString();
       if (pp && status != 'new') {
-        print("ID$origId");
+        print("ID: $origId");
         try {
           print("Haz1: ${widget.sample!.haz1}");
         } on Error {
@@ -364,13 +603,14 @@ class _EditContentState extends State<EditContent> {
       allHazards = container.sampleHazards;
       allForms = container.sampleForms;
       allUnits = container.sampleUnits;
-
       if (status == 'new') {
         unit = "g";
       } else {
         unit = ((widget.sample?.unit != "") ? widget.sample?.unit : "g")!;
       }
-
+      if (pp) {
+        print("unit $unit");
+      }
       if (status == 'new') {
         _form = "Powder";
       } else {
@@ -383,6 +623,7 @@ class _EditContentState extends State<EditContent> {
         print("form $_form");
       }
       //_formIndex = container.sampleForms.indexOf(_form);
+
       if (status == 'new') {
         _arch = false;
       } else {
@@ -439,6 +680,18 @@ class _EditContentState extends State<EditContent> {
           nameList = container.userList;
           emailIndex = container.userIndex;
           // just make sure that an admin does not edit users:
+/*           print(" ----------------- ");
+          print(" usernameOrig " + usernameOrig);
+          print(" usernameOrig " + usernameOrig);
+
+          print(" ownerOrig " + ownerOrig);
+          print(" name " + name);
+          print(" email " + email);
+          print(" admin " + admin.toString());
+          print("emailList " + emailList.toString());
+          print(" nameList " + nameList.toString());
+          print(" index " + emailIndex.toString());
+          print(" ----------------- "); */
           if (owner != email) {
             emailIndex =
                 emailList.indexWhere((emailList) => emailList == owner);
@@ -465,8 +718,20 @@ class _EditContentState extends State<EditContent> {
         emailList = container.emailList;
         nameList = container.userList;
         emailIndex = container.userIndex;
-      }
+        /* print(" ----------------- ");
+        print(" usernameOrig " + usernameOrig);
+        print(" ownerOrig " + ownerOrig);
+        usernameOrig = "Yun Liu";
+        print(" usernameOrig " + usernameOrig);
 
+        print(" name " + name);
+        print(" email " + email);
+        print(" admin " + admin.toString());
+        print("emailList " + emailList.toString());
+        print(" nameList " + nameList.toString());
+        print(" index " + emailIndex.toString());
+        print(" ----------------- "); */
+      }
       // a bit more fanigling as we are doing 3 things with this one form
       if (owner == "") {
         owner = container.userEmail;
@@ -482,6 +747,7 @@ class _EditContentState extends State<EditContent> {
         emailIndex = 0;
       }
       if (pp) {
+        print(widget.sample!.toJson().toString());
         print("username $username");
         print("owner $owner");
         print("name $name");
@@ -508,6 +774,10 @@ class _EditContentState extends State<EditContent> {
         null;
       }
       // get values for next list
+      //
+      // EDIT ME IF THERE IS AN ISSUE WITH LOCATION! CMB XXX
+      //
+      //selectedPlace = 'GuideHall';
 
       if (selectedPlace == 'Confinement') {
         locationList = locationOptionsConf;
@@ -518,6 +788,7 @@ class _EditContentState extends State<EditContent> {
       } else {
         locationList = locationOptionsOther;
       }
+
       if (pp && status != 'new') {
         print("selectedPlace from json ${widget.sample!.place}");
         print("location from json ${widget.sample!.location}");
@@ -601,7 +872,6 @@ class _EditContentState extends State<EditContent> {
             ? widget.sample!.locationid
             : "")!;
       }
-
       if (pp) {
         print("locationid $locationid");
       }
@@ -652,8 +922,6 @@ class _EditContentState extends State<EditContent> {
         drawerList = bankdrawer;
       } else if (locationid == 'Bank 26') {
         drawerList = bankdrawer;
-      } else if (locationid == 'Bank 26') {
-        drawerList = bankdrawer;
       } else if (locationid == 'Freezer') {
         drawerList = drawer5;
       } else if (locationid == 'Argon box') {
@@ -669,7 +937,6 @@ class _EditContentState extends State<EditContent> {
       } else {
         drawerList = [];
       }
-
       if (widget.sample?.drawer != null) {
         drawer = ((widget.sample!.drawer != "") ? widget.sample!.drawer : "")!;
       }
@@ -693,6 +960,7 @@ class _EditContentState extends State<EditContent> {
           haz4 = ((widget.sample?.haz4 != "") ? widget.sample?.haz4 : "")!;
         }
       }
+
 // // DELETE ME
 //       selectedPlace = 'Confinement';
 //       locationList = locationOptionsConf;
@@ -772,10 +1040,14 @@ class _EditContentState extends State<EditContent> {
                   'Haz4': haz4,
                   'units': unit,
                   'form': _form,
-                  'place': selectedPlace,
-                  'location': location,
-                  'locationID': locationid,
-                  'drawer': drawer,
+                  'place': '',
+                  'location': '',
+                  'locationID': '',
+                  'drawer': '',
+                  //'place': selectedPlace,
+                  //'location': location,
+                  //'locationID': locationid,
+                  //'drawer': drawer,
                   'username': owner,
                   //'Name': "",
                   //'Username': "",
@@ -816,6 +1088,7 @@ class _EditContentState extends State<EditContent> {
                         FormBuilderValidators.required(),
                         FormBuilderValidators.maxWordsCount(70),
                       ]),
+                      // Set `checkNullOrEmpty` to false to allow empty values
                     ),
                     FormBuilderTextField(
                       keyboardType: TextInputType.text,
@@ -931,6 +1204,40 @@ class _EditContentState extends State<EditContent> {
                       ),
                     ),
 
+                    // Container(
+                    //   child: Row(
+                    //     children: <Widget>[
+                    //       Padding(
+                    //         padding: EdgeInsets.fromLTRB(40, 0, 0, 0),
+                    //       ),
+                    //       Flexible(
+                    //         child: DropdownButton(
+                    //           value: _form,
+                    //           isExpanded: true,
+                    //           hint: Text('select sample form'),
+                    //           underline: Container(
+                    //             height: 1,
+                    //             color: Colors.blue,
+                    //           ),
+                    //           onChanged: (newValue) {
+                    //             setState(() {
+                    //               _form = newValue.toString();
+                    //               widget.sample!.form = newValue.toString();
+                    //             });
+                    //           },
+                    //           items: allForms
+                    //               .map<DropdownMenuItem<String>>((newValue) {
+                    //             return DropdownMenuItem(
+                    //               value: newValue,
+                    //               child: Text(newValue),
+                    //             );
+                    //           }).toList(),
+                    //         ),
+                    //       ),
+                    //     ],
+                    //   ),
+                    // ),
+
                     // ignore: avoid_unnecessary_containers
                     Container(
                       child: Row(
@@ -942,129 +1249,109 @@ class _EditContentState extends State<EditContent> {
                                   MdiIcons.qrcodeScan,
                                   color: Colors.blue,
                                 ),
-                                onPressed: () async {
-                                  const single = 1;
-                                  final dynamic response =
-                                      await Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                              builder: (context) =>
-                                                  const BarcodeScannerWithController(
-                                                      single: single)));
-
-                                  if (response != '' ||
-                                      response != '-1' ||
-                                      response != -1) {
-                                    setState(() {
-                                      textControllerCell.text = response;
-                                      cellbarcode = response;
-                                    });
-                                  } else {
-                                    textControllerCell.text = '';
-                                    cellbarcode = '';
-                                  }
-                                }),
+                                onPressed: () {}),
                           ),
                           Flexible(
-                            child: TextField(
-                              controller: textControllerCell,
-                              decoration: const InputDecoration(
-                                hintText: 'QR code',
-                              ),
-                            ),
-
-                            // child: FormBuilderTextField(
-                            //   keyboardType: TextInputType.text,
-                            //   focusNode: _nodeText5,
-                            //   onChanged: (val) {
-                            //     // XXX do we need this?
-                            //     bool inList = false;
-                            //     // check to see if in cellLists
-                            //     container.eAl16List.forEach((element) {
-                            //       if (element.barcode == val) {
-                            //         inList = true;
-                            //       }
-                            //     });
-                            //     container.eAl12List.forEach((element) {
-                            //       if (element.barcode == val) {
-                            //         inList = true;
-                            //       }
-                            //     });
-                            //     container.eAl31List.forEach((element) {
-                            //       if (element.barcode == val) {
-                            //         inList = true;
-                            //       }
-                            //     });
-                            //     container.eAl63List.forEach((element) {
-                            //       if (element.barcode == val) {
-                            //         inList = true;
-                            //       }
-                            //     });
-                            //     container.eDCSList.forEach((element) {
-                            //       if (element.barcode == val) {
-                            //         inList = true;
-                            //       }
-                            //     });
-                            //     container.eSSList.forEach((element) {
-                            //       if (element.barcode == val) {
-                            //         inList = true;
-                            //       }
-                            //     });
-                            //     container.eBrookhavenEList.forEach((element) {
-                            //       if (element.barcode == val) {
-                            //         inList = true;
-                            //       }
-                            //     });
-                            //     container.eOtherList.forEach((element) {
-                            //       if (element.barcode == val) {
-                            //         inList = true;
-                            //       }
-                            //     });
-                            //     container.eVanAList.forEach((element) {
-                            //       if (element.barcode == val) {
-                            //         inList = true;
-                            //       }
-                            //     });
-                            //     container.eVanBList.forEach((element) {
-                            //       if (element.barcode == val) {
-                            //         inList = true;
-                            //       }
-                            //     });
-                            //     container.eVanCList.forEach((element) {
-                            //       if (element.barcode == val) {
-                            //         inList = true;
-                            //       }
-                            //     });
-                            //     container.eVanDList.forEach((element) {
-                            //       if (element.barcode == val) {
-                            //         inList = true;
-                            //       }
-                            //     });
-                            //     container.eVanEList.forEach((element) {
-                            //       if (element.barcode == val) {
-                            //         inList = true;
-                            //       }
-                            //     });
-                            //     if (val == "") {
-                            //       inList = true;
-                            //     }
-                            //     if (inList) {
-                            //       print('in list');
-                            //       widget.sample.cellbarcode = val;
-                            //     } else {
-                            //       print('Cell is not in the database');
-                            //     }
-                            //   },
-                            //   name: (sampenvbarcode == "")
-                            //       ? "Enter QR code"
-                            //       : "$sampenvbarcode",
-                            //   decoration: InputDecoration(labelText: "QR code"),
-
-                            //   // validators: [
-                            //   //   (val) {
-                            //   //   },
-                            //   // ],
+                            // child: TextField(
+                            //   controller: textControllerCell,
+                            //   decoration: InputDecoration(
+                            //     hintText: 'QR code',
+                            //   ),
                             // ),
+
+                            child: FormBuilderTextField(
+                              keyboardType: TextInputType.text,
+                              focusNode: _nodeText5,
+                              onChanged: (val) {
+                                // XXX do we need this?
+                                bool inList = false;
+                                // check to see if in cellLists
+                                for (var element in container.eAl16List) {
+                                  if (element.barcode == val) {
+                                    inList = true;
+                                  }
+                                }
+                                for (var element in container.eAl12List) {
+                                  if (element.barcode == val) {
+                                    inList = true;
+                                  }
+                                }
+                                for (var element in container.eAl31List) {
+                                  if (element.barcode == val) {
+                                    inList = true;
+                                  }
+                                }
+                                for (var element in container.eAl63List) {
+                                  if (element.barcode == val) {
+                                    inList = true;
+                                  }
+                                }
+                                for (var element in container.eDCSList) {
+                                  if (element.barcode == val) {
+                                    inList = true;
+                                  }
+                                }
+                                for (var element in container.eSSList) {
+                                  if (element.barcode == val) {
+                                    inList = true;
+                                  }
+                                }
+                                for (var element in container.eBrookhavenEList) {
+                                  if (element.barcode == val) {
+                                    inList = true;
+                                  }
+                                }
+                                for (var element in container.eOtherList) {
+                                  if (element.barcode == val) {
+                                    inList = true;
+                                  }
+                                }
+                                for (var element in container.eVanAList) {
+                                  if (element.barcode == val) {
+                                    inList = true;
+                                  }
+                                }
+                                for (var element in container.eVanBList) {
+                                  if (element.barcode == val) {
+                                    inList = true;
+                                  }
+                                }
+                                for (var element in container.eVanCList) {
+                                  if (element.barcode == val) {
+                                    inList = true;
+                                  }
+                                }
+                                for (var element in container.eVanDList) {
+                                  if (element.barcode == val) {
+                                    inList = true;
+                                  }
+                                }
+                                for (var element in container.eVanEList) {
+                                  if (element.barcode == val) {
+                                    inList = true;
+                                  }
+                                }
+                                if (val == "") {
+                                  inList = true;
+                                }
+                                if (inList) {
+                                  print('in list $val');
+                                  widget.sample?.cellbarcode = val;
+                                } else {
+                                  print('Cell is not in the database');
+                                }
+                              },
+                              name: "cellbarcode",
+                              decoration:
+                                  const InputDecoration(labelText: "Sample QR code"),
+                              onSaved: (value) {
+                                widget.sample!.cellbarcode = value;
+                              },
+                              // validators: [
+                              //   (val) {
+                              //   },
+                              // ],
+                            ),
                           ),
                         ],
                       ),
@@ -1080,37 +1367,21 @@ class _EditContentState extends State<EditContent> {
                                   MdiIcons.qrcodeScan,
                                   color: Colors.blue,
                                 ),
-                                onPressed: () async {
-                                  const int single = 1;
-                                  final dynamic response =
-                                      await Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                              builder: (context) =>
-                                                  const BarcodeScannerWithController(
-                                                      single: single)));
-
-                                  if (response != '' ||
-                                      response != '-1' ||
-                                      response != -1) {
-                                    setState(() {
-                                      sampenvbarcode = response;
-                                      textControllerSE.text = response;
-                                    });
-                                  } else {
-                                    textControllerSE.text = '';
-                                    sampenvbarcode = '';
-                                  }
-                                }),
+                                onPressed: () {}),
                           ),
                           Flexible(
-                            child: TextField(
-                              controller: textControllerSE,
-                              decoration: const InputDecoration(
-                                hintText: 'SE QR code',
-                              ),
-                            ),
-                          ),
+                              child: FormBuilderTextField(
+                                  keyboardType: TextInputType.text,
+                                  focusNode: _nodeText6,
+                                  onChanged: (val) {
+                                    widget.sample?.sampenvbarcode = val;
+                                  },
+                                  name: "sampenvbarcode",
+                                  decoration:
+                                      const InputDecoration(labelText: "SE QR code"),
+                                  onSaved: (val) {
+                                    widget.sample?.sampenvbarcode = val;
+                                  })),
                         ],
                       ),
                     ),
@@ -1287,6 +1558,7 @@ class _EditContentState extends State<EditContent> {
                       ),
                     ),
 
+                    // ignore: avoid_unnecessary_containers
                     // ignore: avoid_unnecessary_containers
                     Container(
                       child: Row(
@@ -1677,6 +1949,7 @@ class _EditContentState extends State<EditContent> {
                     ),
 
                     // ignore: avoid_unnecessary_containers
+                    // ignore: avoid_unnecessary_containers
                     Container(
                       child: Row(
                         children: <Widget>[
@@ -1708,6 +1981,8 @@ class _EditContentState extends State<EditContent> {
                         ],
                       ),
                     ),
+                    // ignore: avoid_unnecessary_containers
+                    // ignore: avoid_unnecessary_containers
 
                     // ignore: avoid_unnecessary_containers
                     Container(
@@ -1742,6 +2017,7 @@ class _EditContentState extends State<EditContent> {
                       ),
                     ),
 
+                    // ignore: avoid_unnecessary_containers
                     // ignore: avoid_unnecessary_containers
                     Container(
                       child: Row(
@@ -1803,6 +2079,7 @@ class _EditContentState extends State<EditContent> {
                         icon: Icon(MdiIcons.trashCan, color: Colors.grey),
                       ),
                     ),
+                    // ignore: avoid_unnecessary_containers
 
                     // ignore: avoid_unnecessary_containers
                     Container(
@@ -1936,9 +2213,7 @@ class _EditContentState extends State<EditContent> {
                                           TargetPlatform.android)
                                   ? Expanded(
                                       child: ElevatedButton(
-                                          onPressed: () {
-                                            openCamera();
-                                          },
+                                          onPressed: () {},
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: Colors.green,
                                             foregroundColor: Colors.white,
@@ -1952,12 +2227,33 @@ class _EditContentState extends State<EditContent> {
                                           ),
                                           child: const Text("Open Camera")),
                                     )
-                                  : const Expanded(
-                                      child: TextButton(
-                                        onPressed: null,
-                                        child: Text(""),
-                                      ),
-                                    )
+                                  : (defaultTargetPlatform ==
+                                          TargetPlatform.windows)
+                                      ? Expanded(
+                                          child: ElevatedButton(
+                                              onPressed: () {
+                                                _takePicture(context);
+                                              },
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.green,
+                                                foregroundColor: Colors.white,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          18.0),
+                                                  side: const BorderSide(
+                                                      color: Colors.red),
+                                                ),
+                                              ),
+                                              child: const Text(
+                                                  "Open Camera (if present)")),
+                                        )
+                                      : const Expanded(
+                                          child: TextButton(
+                                            onPressed: null,
+                                            child: Text(""),
+                                          ),
+                                        )
                             ],
                           )),
                         ],
@@ -1976,8 +2272,8 @@ class _EditContentState extends State<EditContent> {
                                     Navigator.pop(context);
                                   },
                                   style: ElevatedButton.styleFrom(
-                                    foregroundColor: Colors.white,
                                     backgroundColor: Colors.blue,
+                                    foregroundColor: Colors.white,
                                     shape: RoundedRectangleBorder(
                                       borderRadius:
                                           BorderRadius.circular(18.0),
@@ -1997,6 +2293,10 @@ class _EditContentState extends State<EditContent> {
                                     if (unit != widget.sample!.unit) {
                                       widget.sample!.unit = unit;
                                     }
+                                    //Sometimes files dont have the right form... can uncomment this and
+                                    // then every time you save a sample it will change
+                                    // widget.sample!.form = "Single Crystal";
+
                                     if (selectedPlace != widget.sample!.place) {
                                       widget.sample!.place = selectedPlace;
                                     }
@@ -2052,7 +2352,8 @@ class _EditContentState extends State<EditContent> {
                                           // ignore: unnecessary_null_comparison
                                           //if (this._image != null) {
                                           if (changedImage) {
-                                            // print("Image changing");
+                                            print("Image changing");
+
                                             //must have changed the image: lets update
                                             var val = API.updateImage(
                                                 container.getjwt,
@@ -2061,10 +2362,11 @@ class _EditContentState extends State<EditContent> {
                                                 file: _image);
                                             if (val.toString().isNotEmpty) {
                                               // ignore: use_build_context_synchronously
-                                              toast(context, "Sample cloned",
+                                              toast(context, "Sample Edited",
                                                   Colors.green);
                                             } else {
                                               toast(
+                                                  // ignore: use_build_context_synchronously
                                                   // ignore: use_build_context_synchronously
                                                   context,
                                                   "Error updating image",
@@ -2135,18 +2437,19 @@ class _EditContentState extends State<EditContent> {
                                       });
                                     } else if (status == "new") {
                                       widget.sample?.sampleId = "";
-                                      // print("New Sample");
+                                      print("New Sample");
                                       // is there an image?
                                       // ignore: unnecessary_null_comparison
                                       if (_image != null) {
-                                        // print("image present");
+                                        print("image present");
+                                        print(widget.sample!.toJson());
 
                                         if (Image.file(_image) !=
                                                 backgroundImage &&
                                             _image.path !=
                                                 "your initial file") {
                                           // print("And it is new");
-
+                                          // print(this._image.path);
                                           //must have changed the image.
                                           // create a sample then upload the image
                                           final myFuture =

@@ -1,267 +1,322 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-
+//import 'package:flutter/material.dart';
+import 'package:flutter_samples/models/Sample.dart';
 import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
+import 'dart:convert';
+//import  'package:path/path.dart';
 import 'package:mime/mime.dart';
+import 'package:http_parser/http_parser.dart';
+import '../Functions/Server.dart';
 
-import 'Functions/Server.dart';
-import 'models/Sample.dart' hide Hazards;
-import 'models/Cells.dart';
-import 'models/Forms.dart';
-import 'models/Hazards.dart';
-import 'models/Units.dart';
-import 'models/User.dart';
+//AWS
+//http://10.208.110.28/sampletracking_test/
+//WEBSTER
+//const SERVER_IP = 'https://www.ncnr.nist.gov'
+//const SERVER_IP = 'https://ncnr.nist.gov/flutter';
 
-// --- Custom Exceptions ---
+const baseUrl = "$SERVER_IP/sampletracking_test/index.php/samples";
+// for a specific ample ID add /id/latest
+const baseUrlForms = "$SERVER_IP/sampletracking_test/index.php/forms";
+const baseUrlUnits = "$SERVER_IP/sampletracking_test/index.php/units";
+const baseUrlHazards = "$SERVER_IP/sampletracking_test/index.php/hazards";
 
-class ApiException implements Exception {
-  final String message;
-  final int? statusCode;
+const baseUrl_cans = "$SERVER_IP/sampletracking_test/index.php/cells/";
+const baserUrlUpdateSampleCell =
+    '$SERVER_IP/sampletracking_test/index.php/cells/';
+const baserUrlAddSampleCell = "$SERVER_IP/sampletracking_test/index.php/cells";
 
-  ApiException(this.message, [this.statusCode]);
+const baseUrlSingleCellId = "$SERVER_IP/sampletracking_test/index.php/cells/";
+const baseUrl_usersamp =
+    "$SERVER_IP/sampletracking_test/index.php/samples/username";
+// "https://www.ncnr.nist.gov/sampletracking_test/index.php/samples/username";
 
-  @override
-  String toString() {
-    return "ApiException: $message (Status code: ${statusCode ?? 'N/A'})";
-  }
-}
+const baseUrlUser = "$SERVER_IP/sampletracking_test/index.php/users";
+const baseUrlUserPass = "$SERVER_IP/sampletracking_test/index.php/password";
+const baseUrlUpdateUser = "$SERVER_IP/sampletracking_test/index.php/users";
+// append the ID
+const baseUrlAddUser = "$SERVER_IP/sampletracking_test/index.php/users";
+// Has no ID associated
+const baseUrlUpdateSample = "$SERVER_IP/sampletracking_test/index.php/samples";
+const baseUpdateImage = "$SERVER_IP/sampletracking_test/index.php/image";
 
-class NetworkException extends ApiException {
-  NetworkException(String message) : super("Network Error: $message");
-}
+class API {
+  static Future<String> attemptLogIn(String user, String pass) async {
+    Map data = {'email': user, 'password': pass};
+    String body = json.encode(data);
 
-class UnauthorizedException extends ApiException {
-  UnauthorizedException([String message = "Unauthorized"]) : super(message, 401);
-}
-
-// --- API Client ---
-
-/// A modern and robust API client for the sample tracking service.
-///
-/// NOTE: This application is configured to bypass SSL certificate validation
-/// via a global HttpOverrides setting in main.dart. This is an intentional
-/// configuration based on user requirements for an internal network.
-class ApiClient {
-  final http.Client _client;
-  final String _baseUrl = "$SERVER_IP/sampletracking_test/index.php";
-
-  ApiClient({http.Client? client}) : _client = client ?? http.Client();
-
-  // --- Helper Methods ---
-
-  Future<T> _get<T>(String endpoint, {required String jwt, required T Function(dynamic json) fromJson}) async {
-    final uri = Uri.parse('$_baseUrl/$endpoint');
-    try {
-      final response = await _client.get(uri, headers: _authHeaders(jwt));
-      return _handleResponse(response, fromJson);
-    } on SocketException catch (e) {
-      throw NetworkException(e.message);
-    }
-  }
-
-  Future<T> _post<T>(String endpoint, {String? jwt, required Map<String, dynamic> body, required T Function(dynamic json) fromJson}) async {
-    final uri = Uri.parse('$_baseUrl/$endpoint');
-    try {
-      final response = await _client.post(uri, headers: _headers(jwt: jwt), body: json.encode(body));
-      return _handleResponse(response, fromJson);
-    } on SocketException catch (e) {
-      throw NetworkException(e.message);
-    }
-  }
-
-  Future<T> _put<T>(String endpoint, {required String jwt, required Map<String, dynamic> body, required T Function(dynamic json) fromJson}) async {
-    final uri = Uri.parse('$_baseUrl/$endpoint');
-    try {
-      final response = await _client.put(uri, headers: _authHeaders(jwt), body: json.encode(body));
-      return _handleResponse(response, fromJson);
-    } on SocketException catch (e) {
-      throw NetworkException(e.message);
-    }
-  }
-
-  Future<void> _delete(String endpoint, {required String jwt}) async {
-    final uri = Uri.parse('$_baseUrl/$endpoint');
-    try {
-      final response = await _client.delete(uri, headers: _authHeaders(jwt));
-       _handleResponse(response, (json) => null); // We just care about the status code
-    } on SocketException catch (e) {
-      throw NetworkException(e.message);
-    }
-  }
-
-  T _handleResponse<T>(http.Response response, T Function(dynamic json) fromJson) {
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      final jsonBody = json.decode(response.body);
-      return fromJson(jsonBody);
-    } else if (response.statusCode == 401) {
-      throw UnauthorizedException();
-    } else {
-      throw ApiException('Request failed with status: ${response.statusCode}.', response.statusCode);
-    }
-  }
-
-  Map<String, String> _headers({String? jwt}) {
-    final headers = {'Content-Type': 'application/json; charset=UTF-8'};
-    if (jwt != null) {
-      headers['Authorization'] = 'Bearer $jwt';
-    }
-    return headers;
-  }
-
-  Map<String, String> _authHeaders(String jwt) => _headers(jwt: jwt);
-
-  // --- Authentication ---
-
-  Future<String> attemptLogIn(String email, String password) async {
-    // This login endpoint is outside the standard /index.php path
-    final uri = Uri.parse('$SERVER_IP/sampletracking_test/login.php');
-    try {
-      final response = await _client.post(
-        uri,
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
-          "origin": "http://localhost" // As per original code
-        },
-        body: json.encode({'email': email, 'password': password}),
-      );
-      // Login returns the JWT directly in the body, not as JSON
-      if (response.statusCode == 200) {
-        return response.body;
-      } else {
-        throw ApiException('Login failed', response.statusCode);
-      }
-    } on SocketException catch (e) {
-      throw NetworkException(e.message);
-    }
-  }
-
-  // --- Users ---
-
-  Future<List<User>> getUsers(String jwt) async {
-    return await _get('users', jwt: jwt, fromJson: (json) {
-      final users = (json as List).map((data) => User.fromJson(data)).toList();
-      return users;
-    });
-  }
-
-  // Note: The original code for updateUser, addNewUser, etc. returned strings or status codes.
-  // A better implementation returns the updated/created object or void.
-  // For now, we will return Future<void> to indicate success/failure via exceptions.
-
-  Future<void> updateUser(String jwt, {required String id, required Map<String, dynamic> data}) async {
-    await _put('users/$id', jwt: jwt, body: data, fromJson: (json) => null);
-  }
-
-  Future<Map<String, dynamic>> addNewUser(String jwt, {required Map<String, dynamic> data}) async {
-    return await _post('users', jwt: jwt, body: data, fromJson: (json) => json as Map<String, dynamic>);
-  }
-
-  Future<Map<String, dynamic>> updateUserPassword(String jwt, String email) async {
-    return await _put('password', jwt: jwt, body: {"email": email, "password": ""}, fromJson: (json) => json as Map<String, dynamic>);
-  }
-
-  // --- Samples & Related Data ---
-
-  Future<List<Sample>> getSamples(String jwt) async {
-    return await _get('samples/latest', jwt: jwt, fromJson: (json) {
-      return (json as List).map((data) => Sample.fromJson(data)).toList();
-    });
-  }
-
-  Future<Sample> getSampleID(String jwt, {required String id}) async {
-    return await _get('samples/$id', jwt: jwt, fromJson: (json) => Sample.fromJson(json));
-  }
-
-  Future<List<Sample>> getUserSamples(String jwt, {required String userEmail}) async {
-    return await _get('samples/username/$userEmail/latest', jwt: jwt, fromJson: (json) {
-      return (json as List).map((data) => Sample.fromJson(data)).toList();
-    });
-  }
-
-  Future<Map<String, dynamic>?> updateSample(String jwt, {required Sample sample}) async {
-    // The original API seems to use POST for updates, which is unconventional.
-    return await _post('samples', jwt: jwt, body: sample.toJson(), fromJson: (json) => json as Map<String, dynamic>?);
-  }
-
-  // --- Forms, Units, Hazards ---
-
-  Future<List<FormsOfSample>> getForms(String jwt) async {
-    return await _get('forms', jwt: jwt, fromJson: (json) {
-      return (json as List).map((data) => FormsOfSample.fromJson(data)).toList();
-    });
-  }
-
-  Future<List<UnitsOfSample>> getUnits(String jwt) async {
-    return await _get('units', jwt: jwt, fromJson: (json) {
-      return (json as List).map((data) => UnitsOfSample.fromJson(data)).toList();
-    });
-  }
-
-  Future<List<Hazards>> getHazards(String jwt) async {
-    return await _get('hazards', jwt: jwt, fromJson: (json) {
-      return (json as List).map((data) => Hazards.fromJson(data)).toList();
-    });
-  }
-
-  // --- Cells / Cans ---
-
-  Future<List<Cells>> getCans(String jwt, {String? status}) async {
-    String endpoint = 'cells';
-    if (status != null && (status == 'full' || status == 'empty')) {
-      endpoint = 'cells/$status';
-    }
-    return await _get(endpoint, jwt: jwt, fromJson: (json) {
-      return (json as List).map((data) => Cells.fromJson(data)).toList();
-    });
-  }
-
-  Future<Cells> getThisCan(String jwt, {required String id}) async {
-    return await _get('cells/$id', jwt: jwt, fromJson: (json) => Cells.fromJson(json));
-  }
-
-  Future<void> addNewCell(String jwt, {required String barcode, required String description}) async {
-    await _post('cells', jwt: jwt, body: {'barcode': barcode, 'description': description}, fromJson: (json) => null);
-  }
-
-  Future<void> updateCell(String jwt, {required String id, required String barcode, required String description}) async {
-    await _put('cells/$id', jwt: jwt, body: {'barcode': barcode, 'description': description}, fromJson: (json) => null);
-  }
-
-  Future<void> deleteCell(String jwt, {required String id}) async {
-    await _delete('cells/$id', jwt: jwt);
-  }
-
-  // --- Image Upload ---
-
-  Future<void> updateImage(String jwt, {required String sampleID, required File file}) async {
-    final uri = Uri.parse('$_baseUrl/image');
-    final request = http.MultipartRequest('POST', uri);
-
-    final mimeTypeData = lookupMimeType(file.path)?.split('/');
-    final fileStream = http.ByteStream(file.openRead());
-    final length = await file.length();
-
-    request.headers['Authorization'] = 'Bearer $jwt';
-    request.fields['sample_id'] = sampleID;
-
-    final multipartFile = http.MultipartFile(
-      'image',
-      fileStream,
-      length,
-      filename: file.path.split('/').last,
-      contentType: mimeTypeData != null ? MediaType(mimeTypeData[0], mimeTypeData[1]) : null,
+    var result = await http.post(
+      Uri.parse("$SERVER_IP/sampletracking_test/login.php"),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        "origin": "http://localhost"
+      },
+      body: body,
     );
+    //print(result.statusCode.toString());
+    //print(result.body);
+    //print(result.headers);
+    //print(result.reasonPhrase);
+    if (result.statusCode == 200) return result.body;
+    return "";
+  }
 
-    request.files.add(multipartFile);
+  static Future getHazards(String jwt) async {
+    var result = await http.get(Uri.parse(baseUrlHazards),
+        headers: {"Authorization": "Bearer $jwt"});
+    return result;
+  }
 
+  static Future getSamples(String jwt) async {
+    var result = await http.get(Uri.parse("$baseUrl/latest"),
+        headers: {"Authorization": "Bearer $jwt"});
+    return result;
+  }
+
+  static Future getSampleID(String id, String jwt) async {
+    final uri = Uri.parse("$baseUrl/$id"); //+"/latest";
+    var result =
+        await http.get(uri, headers: {"Authorization": "Bearer $jwt"});
+
+    return result;
+  }
+
+  static Future getForms(String jwt) async {
+    var result = await http.get(Uri.parse(baseUrlForms),
+        headers: {"Authorization": "Bearer $jwt"});
+    return result;
+  }
+
+  static Future getUnits(String jwt) async {
+    var result = await http.get(Uri.parse(baseUrlUnits),
+        headers: {"Authorization": "Bearer $jwt"});
+    return result;
+  }
+
+  static Future getUserSamples(String user, String jwt) async {
+    var url = Uri.parse("$baseUrl_usersamp/$user/latest");
+    return http.get(url, headers: {"Authorization": "Bearer $jwt"});
+  }
+
+  static Future getUsers(String jwt) async {
+    var result = await http.get(Uri.parse(baseUrlUser),
+        headers: {"Authorization": "Bearer $jwt"});
+    return result;
+  }
+
+  static Future getCans(String jwt) async {
+    var url = Uri.parse(baseUrl_cans);
+    var response =
+        await http.get(url, headers: {"Authorization": "Bearer $jwt"});
+    return response;
+  }
+
+  static Future getFullCans(String jwt) async {
+    var url = Uri.parse("${baseUrl_cans}full");
+    var response =
+        await http.get(url, headers: {"Authorization": "Bearer $jwt"});
+    return response;
+  }
+
+  static Future getEmptyCans(String jwt) async {
+    var url = Uri.parse("${baseUrl_cans}empty");
+    var response =
+        await http.get(url, headers: {"Authorization": "Bearer $jwt"});
+    return response;
+  }
+
+  static Future getThisCan(String id, String jwt) async {
+    var url = Uri.parse(baseUrlSingleCellId + id.toString());
+    var response =
+        await http.get(url, headers: {"Authorization": "Bearer $jwt"});
+    return response;
+  }
+
+  //update a user
+  static Future updateUser(jwt, {id, data}) async {
+    // ignore: prefer_is_empty
+    if (id.toString().length >= 0) {
+      // ignore: prefer_interpolation_to_compose_strings
+      final result = await http.put(Uri.parse("$baseUrlUpdateUser/" + id),
+          body: jsonEncode(data),
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + jwt
+          });
+      // print(result.body);
+      return result.statusCode.toString();
+    } else {
+      return 0;
+    }
+  }
+
+  //add a user
+  static Future addNewUser(jwt, {data}) async {
+    final result = await http.post(Uri.parse(baseUrlAddUser),
+        body: jsonEncode(data),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + jwt
+        });
+
+    if (result.body.toString().contains("Duplicate entry")) {
+      return "Error in adding new user: email already in database";
+    } else if (result.statusCode.toString() == "200") {
+      String ttt = (jsonDecode(result.body)['password'].toString());
+      // print(result.body);
+      return ttt;
+    } else {
+      return "Error in adding new user: unknown error";
+    }
+
+//    print("going back");
+  }
+
+  //updates user passsword
+  static Future updateUserPassword(jwt, email) async {
+    var data = {"email": email, "password": ""};
+    final result = await http.put(Uri.parse(baseUrlUserPass),
+        body: jsonEncode(data),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + jwt
+        });
+    String ttt = (jsonDecode(result.body)['password'].toString());
+
+//    print("going back");
+    if (result.statusCode.toString() == "200") {
+      return ttt;
+    } else {
+      return "error in password change";
+    }
+  }
+
+//delete a cell
+  static Future deleteCell(jwt, id) async {
+    //var data = {"id": id};
+    final url = Uri.parse(baseUrl_cans + id);
+    // ignore: unused_local_variable
+    final result = await http.delete(url,
+        //body: jsonEncode(data),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + jwt
+        });
+    // print('Deleting cell ' + id);
+    // print(result.body);
+    return 200;
+  }
+
+  //add a cell
+  static Future addNewCell(jwt, {barcode, description}) async {
+    var data = {"barcode": barcode, "description": description};
+    final result = await http.post(Uri.parse(baserUrlAddSampleCell),
+        body: jsonEncode(data),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + jwt
+        });
+    // print(result.statusCode.toString());
+    // print(jsonEncode(data).toString());
+    // print(baseUrlAddUser);
+    // print('Adding new cell' + barcode);
+    // print(result.body);
+    return result.statusCode.toString();
+  }
+
+  // add an image from file:
+  static Future updateImage(jwt, {sampleID, file}) async {
+    final mimeTypeData =
+        lookupMimeType(file.path, headerBytes: [0xFF, 0xD8])!.split('/');
+// Intilize the multipart request
+    final imageUploadRequest =
+        http.MultipartRequest('POST', Uri.parse(baseUpdateImage));
+// Attach the file in the request
+    final fileAttached = await http.MultipartFile.fromPath('image', file.path,
+        contentType: MediaType(mimeTypeData[0], mimeTypeData[1]));
+// add the id:
+    imageUploadRequest.headers['sample_id'] = sampleID.toString();
+    imageUploadRequest.headers["Authorization"] = "Bearer " + jwt;
+    imageUploadRequest.fields['sample_id'] = sampleID.toString();
+    imageUploadRequest.files.add(fileAttached);
+    print(imageUploadRequest.fields.toString());
     try {
-      final streamedResponse = await _client.send(request);
+      final streamedResponse = await imageUploadRequest.send();
       final response = await http.Response.fromStream(streamedResponse);
-      _handleResponse(response, (json) => null);
-    } on SocketException catch (e) {
-      throw NetworkException(e.message);
+      print(response.statusCode);
+      if (response.statusCode != 200) {
+        print('server response is not OK');
+        final responseData = json.decode(response.body);
+        print(responseData);
+        return "";
+      }
+      final responseData = json.decode(response.body);
+      print(
+          "Uppdated image: warning might need a delay to next sampless refresh!");
+      return responseData;
+    } catch (e) {
+      print('There was an error uploading the image');
+      // print(e);
+      return "";
+    }
+  }
+
+  //update a cell
+  static Future updateCell(jwt, {id, barcode, description}) async {
+    var data = {"barcode": barcode, "description": description};
+    final result = await http.put(
+        Uri.parse(baserUrlUpdateSampleCell + id.toString()),
+        body: jsonEncode(data),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + jwt
+        });
+    return result.statusCode.toString();
+  }
+
+  //update a sample
+  static Future updateSample(jwt, {required Sample sample}) async {
+    print('updating sample');
+    print(jsonEncode(sample));
+    final response = await http.post(Uri.parse(baseUrlUpdateSample),
+        body: jsonEncode(sample),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + jwt
+        });
+    if (response.statusCode != 200) {
+      // print("sample addition error!");
+      // print(json.decode(response.body).toString());
+      return null;
+    } else {
+      if (!json.decode(response.body).toString().contains('result: False')) {
+        // print('code: ' + response.statusCode.toString());
+        final responseData = json.decode(response.body);
+        // print('output: ' + json.decode(response.body).toString());
+        return responseData;
+      } else {
+        // print(response.statusCode.toString());
+        // print(json.decode(response.body).toString());
+        return null;
+      }
+    }
+  }
+
+  static Future newSampleWithImage(jwt, {required Sample sample, image}) async {
+    // print('updating sample');
+    final response = await http.post(Uri.parse(baseUrlUpdateSample),
+        body: jsonEncode(sample),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + jwt
+        });
+    if (response.statusCode != 200) {
+      return null;
+    }
+    final responseData = json.decode(response.body);
+    var id = responseData['sample_id'];
+    var val = updateImage(jwt, sampleID: id, file: image);
+    if (val.toString().isNotEmpty) {
+      // print(val);
     }
   }
 }
