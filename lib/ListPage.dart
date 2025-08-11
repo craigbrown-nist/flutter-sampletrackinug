@@ -45,7 +45,6 @@ class _ListPageState extends State<ListPage> {
   int textFlag = 0;
   // use this to control visibility of FAB + sample button
   bool showPlus = true;
-  bool _isDataLoaded = false; // Flag to prevent multiple data loads
 
   void _getPrefs() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -53,8 +52,7 @@ class _ListPageState extends State<ListPage> {
     final String location = prefs.getString('location') ?? "";
     final String locationid = prefs.getString('locationid') ?? "";
     final String drawer = prefs.getString('drawer') ?? "";
-    if (place != "") {
-      // ignore: use_build_context_synchronously
+    if (place != "" && mounted) {
       final container = MyInheritedWidget.of(context, false);
       print(place);
       container.setPlace(place);
@@ -65,6 +63,7 @@ class _ListPageState extends State<ListPage> {
   }
 
   void _getFullCells() {
+    if (!mounted) return;
     final container = MyInheritedWidget.of(context, false);
     container.clearFullCells();
     final myFuture = API.getFullCans(container.getjwt);
@@ -74,12 +73,11 @@ class _ListPageState extends State<ListPage> {
         Iterable list = json.decode(response.body);
         fCells = list.map((model) => Cells.fromJson(model)).toList();
         // remove the archived ones:
-        if (container.totalFullCells != fCells.length) {
+        if (mounted && container.totalFullCells != fCells.length) {
           // has email list length changed or 1st running?
           container.clearFullCells(); // if so clear the list and repopulate
           for (var i = 0; i < fCells.length; i++) {
-            if (fCells[i].archived == "0" && context.mounted) {
-              // ignore: use_build_context_synchronously
+            if (fCells[i].archived == "0" && mounted) {
               addToFullCells(context: context, cell: fCells[i]);
             }
           }
@@ -89,6 +87,7 @@ class _ListPageState extends State<ListPage> {
   }
 
   void _getEmptyCells() {
+    if (!mounted) return;
     final container = MyInheritedWidget.of(context, false);
     container.clearEmptyCells();
     final myFuture = API.getEmptyCans(container.getjwt);
@@ -99,12 +98,11 @@ class _ListPageState extends State<ListPage> {
         eCells = list.map((model) => Cells.fromJson(model)).toList();
 
         // remove the archived ones:
-        if (container.totalEmptyCells != eCells.length) {
+        if (mounted && container.totalEmptyCells != eCells.length) {
           // has email list length changed or 1st running?
           container.clearEmptyCells(); // if so clear the list and repopulate
           for (var i = 0; i < eCells.length; i++) {
-            if (eCells[i].archived == "0" && context.mounted) {
-              // ignore: use_build_context_synchronously
+            if (eCells[i].archived == "0" && mounted) {
               addToEmptyCells(context: context, cell: eCells[i]);
             }
           }
@@ -114,12 +112,14 @@ class _ListPageState extends State<ListPage> {
   }
 
   getThisUser() {
+    if (!mounted) return;
     final container = MyInheritedWidget.of(context, false);
     var users = List<User>.empty(growable: true);
     /// find user from an email
     final myFuture = API.getUsers(container.getjwt);
     myFuture.then((response) {
       if (response.statusCode == 200) {
+        if (!mounted) return;
         var testusers = List<User>.empty(growable: true);
         container.clearUsers();
         container.clearEmails();
@@ -138,49 +138,35 @@ class _ListPageState extends State<ListPage> {
 
          }
           if (testusers[i].archived == "0") {
-            // print("adding " + _testusers[i].email + " " + _testusers[i].name);
             users.add(testusers[i]);
             container.addEmail(testusers[i].email!);
             container.addUserName(testusers[i].name!);
           }
         }
 
-        //find where the index of loggedin user, get that username and email from the
-        //known users from the server. Can be done at log in in future.
-
         int index =
             users.indexWhere((users) => users.email == container.userEmail);
 
-        if (users[index].name != null || users[index].name != "") {
-          container.setUser(users[index].name!);
+        if (index != -1) {
+          if (users[index].name != null || users[index].name != "") {
+            container.setUser(users[index].name!);
+          }
+          if (users[index].email != null || users[index].email != "") {
+            container.setEmail(users[index].email!);
+          }
+          if (users[index].manager == "1") {
+            container.setAdmin(true);
+          } else {
+            container.setAdmin(false);
+          }
+          container.setIndex(index);
         }
-        if (users[index].email != null || users[index].email != "") {
-          container.setEmail(users[index].email!);
-        }
-        if (users[index].manager == "1") {
-          container.setAdmin(true);
-        } else {
-          container.setAdmin(false);
-        }
-        container.setIndex(index);
-
-        //_getSamples();
       } else {
         // was using this to see if it takes time to login.
-        if (flag < 0) {
+        if (flag < 1) { // Changed to < 1 to retry only once
           print('Failed network - trying again');
           getThisUser();
           _getSamples();
-          _getPrefs();
-          _getFullCells();
-          _getEmptyCells();
-          _getForm();
-          _getUnits();
-          _getHazards();
-
-          setState(() {
-            filteredSamples = mysamples;
-          });
           flag = flag + 1;
         }
       }
@@ -194,8 +180,6 @@ class _ListPageState extends State<ListPage> {
   var singleSample = Sample();
 
   /// default list for logged in user samples
-  /// may have no samples - will throw an error in
-  /// terminal but app still works.
   var mysamples = List<Sample>.empty(growable: true);
 
   /// Where we place samples upon (multiple)selection
@@ -203,8 +187,6 @@ class _ListPageState extends State<ListPage> {
 
   /// new controller for help with search bar and QR codes
   TextEditingController controller = TextEditingController();
-
-  //------------------- Fake Login info  -------//
 
   /// help to re-order the sample list by index or chemical name
   bool numlistforward = true;
@@ -218,8 +200,11 @@ class _ListPageState extends State<ListPage> {
   @override
   void initState() {
     super.initState();
-    /// set up the search/QR controller - edit the forEach block to limit searched items
+    _loadDataWhenReady();
+
+    /// set up the search/QR controller
     controller.addListener(() {
+      if (!mounted) return;
       if (controller.text.isEmpty) {
         setState(() {
           barcoded = "Search";
@@ -228,35 +213,30 @@ class _ListPageState extends State<ListPage> {
       } else {
         setState(() {
           barcoded = "";
-          print("text = ${controller.text}");
-          //print('Search text: ' + barcode);
-          // if a barcode scan, check only cell, sampleid and SE
           filteredSamples = [];
-          for (var mysamples in mysamples) {
-            if (mysamples.sampleId!
+          for (var sample in mysamples) {
+            if (sample.sampleId!
                     .toLowerCase()
                     .contains(controller.text.toLowerCase()) ||
-                mysamples.sampleName!
+                sample.sampleName!
                     .toLowerCase()
                     .contains(controller.text.toLowerCase()) ||
-                mysamples.chemical!
+                sample.chemical!
                     .toLowerCase()
                     .contains(controller.text.toLowerCase()) ||
-                mysamples.cellbarcode!
+                sample.cellbarcode!
                     .toLowerCase()
                     .contains(controller.text.toLowerCase()) ||
-                mysamples.sampenvbarcode!
+                sample.sampenvbarcode!
                     .toLowerCase()
                     .contains(controller.text.toLowerCase()) ||
-                mysamples.externalUser!
+                sample.externalUser!
                     .toLowerCase()
                     .contains(controller.text.toLowerCase()) ||
-                mysamples.extraNotes!
+                sample.extraNotes!
                     .toLowerCase()
                     .contains(controller.text.toLowerCase())) {
-              // print('Matching sample id: ' + mysamples.sampleId);
-              // Since we are parsing every change to the 'search text' ensure this is not already in the list?
-              filteredSamples.add(mysamples);
+              filteredSamples.add(sample);
             }
           }
         });
@@ -264,32 +244,36 @@ class _ListPageState extends State<ListPage> {
     });
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  void _loadDataWhenReady() async {
+    // Wait a brief moment to ensure the widget is built and context is available.
+    await Future.delayed(const Duration(milliseconds: 50));
+    if (!mounted) return;
 
-    // This method is called when the widget is first built and whenever its
-    // dependencies change. We use a flag to ensure we only fetch data once.
-    if (!_isDataLoaded) {
-      final container = MyInheritedWidget.of(context, false);
+    final container = MyInheritedWidget.of(context, false);
 
-      // We only fetch data if the user's email is available.
-      if (container.userEmail.isNotEmpty) {
-        print("didChangeDependencies: Fetching initial data for ${container.userEmail}");
+    // Poll until the email is available, with a timeout.
+    int attempts = 0;
+    while (container.userEmail.isEmpty && attempts < 50) { // Timeout after 5 seconds
+      await Future.delayed(const Duration(milliseconds: 100));
+      if (!mounted) return; // Check again after delay
+      attempts++;
+    }
 
-        getThisUser();
-        _getSamples();
-        _getPrefs();
-        _getForm();
-        _getUnits();
-        _getHazards();
-        _getFullCells();
-        _getEmptyCells();
-
-        setState(() {
-          _isDataLoaded = true; // Mark data as loaded
-          filteredSamples = mysamples;
-        });
+    // Check if we timed out or got the email
+    if (mounted && container.userEmail.isNotEmpty) {
+      print("Email found: ${container.userEmail}. Fetching data.");
+      getThisUser();
+      _getSamples();
+      _getPrefs();
+      _getForm();
+      _getUnits();
+      _getHazards();
+      _getFullCells();
+      _getEmptyCells();
+    } else {
+      print("Timed out waiting for user email. Could not load data.");
+      if (mounted) {
+        toast(context, "Error: Timed out loading user data.", Colors.red);
       }
     }
   }
@@ -302,17 +286,14 @@ class _ListPageState extends State<ListPage> {
 
   Future _refreshSamples() async {
     _getSamples();
-    setState(() {
-      filteredSamples = mysamples;
-    });
-
-    //     print(widget.prefs.toString());
   }
 
   void _getForm() {
+    if (!mounted) return;
     final container = MyInheritedWidget.of(context, false);
     container.clearForm();
     API.getForms(container.getjwt).then((response) {
+      if (!mounted) return;
       setState(() {
         if (response.statusCode == 200) {
           Iterable list = json.decode(response.body);
@@ -329,9 +310,11 @@ class _ListPageState extends State<ListPage> {
   }
 
   void _getUnits() {
+    if (!mounted) return;
     final container = MyInheritedWidget.of(context, false);
     container.clearUnit();
     API.getUnits(container.getjwt).then((response) {
+      if (!mounted) return;
       setState(() {
         if (response.statusCode == 200) {
           Iterable list = json.decode(response.body);
@@ -348,9 +331,11 @@ class _ListPageState extends State<ListPage> {
   }
 
   void _getHazards() {
+    if (!mounted) return;
     final container = MyInheritedWidget.of(context, false);
     container.clearHaz();
     API.getHazards(container.getjwt).then((response) {
+      if (!mounted) return;
       setState(() {
         if (response.statusCode == 200) {
           container.addHaz("");
@@ -369,15 +354,12 @@ class _ListPageState extends State<ListPage> {
 
   void logout() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    // ignore: use_build_context_synchronously
+    if (!mounted) return;
     final container = MyInheritedWidget.of(context, false);
 
-    //print(prefs.getString('jwt'));
     prefs.setString('datauser', "");
     prefs.setBool('isLoggedIn', false);
     prefs.setString('jwt', "");
-    //print('resetting preferences');
-    //print(prefs.getString('jwt'));
 
     container.setJwt('');
     container.setEmail("");
@@ -388,68 +370,43 @@ class _ListPageState extends State<ListPage> {
     container.clearEmails();
     container.clearUsers();
 
-    // ignore: use_build_context_synchronously
-    Navigator.pushReplacementNamed(context, '/');
+    if (mounted) {
+      Navigator.pushReplacementNamed(context, '/');
+    }
   }
 
   void _getSamples() {
-    /// use a future call inside the API and wait for
-    /// data to be populated (the .then() part) before sorting
-    ///
-    /// Note this took a bit of getting used to - the future async and wait need to
-    /// be in the function called from this function. .then will now work
-    ///
+    if (!mounted) return;
     final container = MyInheritedWidget.of(context, false);
     final user = container.userEmail;
 
-    mysamples = [];
-    var temp = [];
-    filteredSamples = [];
+    if (user.isEmpty) return; // Don't fetch if user email is not set
 
     API.getUserSamples(user, container.getjwt).then((response) {
+      if (!mounted) return;
       setState(() {
         if (response.statusCode == 200) {
-          //print('Network response is good: ' + response.statusCode.toString());
           Iterable list = json.decode(response.body);
-          temp = list.map((model) => Sample.fromJson(model)).toList();
-          temp.sort((a, b) => a.sampleId.compareTo(b.sampleId));
-          // lets remove archived samples.
+          var temp = list.map((model) => Sample.fromJson(model)).toList();
+          mysamples.clear();
           for (var i = 0; i < temp.length; i++) {
             if (temp[i].archived == "0") {
               mysamples.add(temp[i]);
-              //print(
-              // "ID: " + temp[i].sampleId + "; Cell: " + temp[i].cellbarcode);
             }
           }
-          toast(context, "Recieved Samples ...", Colors.green);
+          filteredSamples = mysamples;
+          toast(context, "Received Samples...", Colors.green);
 
-          somthingWrong = false;
           if (mysamples.isEmpty) {
-            somthingWrong = true;
-            toast(context, 'No samples! Please create some!', Colors.red);
-
-            throw Exception(
-                'Failed to get any data for user: Do you have any samples?');
+            toast(context, 'No samples found for this user.', Colors.red);
           }
         } else if (response.statusCode == 401) {
-          // There is a permission issue: assume JWT expired and logout
           logout();
         } else {
-          somthingWrong = true;
           toast(context, "Network issues?", Colors.red);
-
-          setState(() {
-            filteredSamples = mysamples;
-            filteredSamples.sort((a, b) => a.sampleId!.compareTo(b.sampleId!));
-            var reversedList = filteredSamples.reversed.toList();
-            filteredSamples = reversedList;
-            numlistforward = false;
-          });
         }
 
         if (container.admin) {
-          print("admin? : ${container.admin}");
-          print('Admin logged in: showing all');
           Navigator.pushReplacementNamed(context, '/all');
         }
       });
@@ -553,49 +510,8 @@ class _ListPageState extends State<ListPage> {
                                         const BarcodeScannerWithController(
                                             single: single)));
                             controller.text = response;
-
-                            // Navigator.of(context).push(
-                            //   MaterialPageRoute(
-                            //     builder: (context) =>
-                            //         const BarcodeScannerWithController(
-                            //             func: function),
-                            //   ),
-                            // );
-                            // await QrMobileVision.getCameraStatus()
-                            //     .then((status) {
-                            //   camState = status;
-                            // });
-                            // if (camState == CameraStatus.inactive) {
-                            //   showCameraPreview();
-                            //   showButtons();
-                            //   // hide + button
-                            //   setState(() {
-                            //     showPlus = false;
-                            //   });
-                            // } else {
-                            //   await QrMobileVision.stop();
-                            //   overlayEntry!.remove();
-                            //   overlayEntryButtons!.remove();
-                            //   overlayEntry = null;
-                            //   overlayEntryButtons = null;
-                            //   // make + button come back
-                            //   setState(() {
-                            //     showPlus = true;
-                            //   });
-                            // }
-                            // await QrMobileVision.getCameraStatus()
-                            //     .then((status) {
-                            //   camState = status;
-                            // });
-
-                            // overlayEntry!.markNeedsBuild();
-                            // overlayEntryButtons!.markNeedsBuild();
                           },
                         ),
-                        // if (barcoded != "") {
-                        //   IconButton(
-                        //     icon: Icon(Icons.cancel,color: Color.fromRGBO(158, 166, 186, 1.0),), onPressed:()=> clearSearch(),),
-                        // }
                       ]
                     : null,
               ),
@@ -605,19 +521,18 @@ class _ListPageState extends State<ListPage> {
 
     final makeBody = RefreshIndicator(
       onRefresh: _refreshSamples,
-      // CMBchild: ListView.separated(
       child: ListView.builder(
         itemCount: filteredSamples.length,
         itemBuilder: (context, index) {
           return Ink(
             decoration: BoxDecoration(
               border: index == 0
-                  ? const Border() // This will create no border for the first item
+                  ? const Border()
                   : Border(
                       top: BorderSide(
                           width: 1,
                           color: Theme.of(context)
-                              .primaryColor)), // This will create top borders for the rest
+                              .primaryColor)),
               color: filteredSamples[index].selected!
                   ? Colors.blue[200]
                   : Colors.transparent,
@@ -677,7 +592,6 @@ class _ListPageState extends State<ListPage> {
           children: <Widget>[
             IconButton(
               icon: const Icon(MdiIcons.orderNumericDescending, color: Colors.white),
-              // Here we can reorder the lists
               onPressed: () {
                 setState(() {
                   if (numlistforward == false) {
@@ -728,15 +642,10 @@ class _ListPageState extends State<ListPage> {
       ),
     );
 
-    ///
-    ///   If Admin is true or false show one of these sliding menu drawers
-    ///
-
     SpeedDial buildSpeedDial(BuildContext context) {
       return SpeedDial(
         animatedIcon: AnimatedIcons.menu_close,
         animatedIconTheme: const IconThemeData(size: 22.0),
-        // child: Icon(Icons.add),
         visible: dialVisible,
         curve: Curves.bounceIn,
         children: [
@@ -752,10 +661,8 @@ class _ListPageState extends State<ListPage> {
                       sample: filteredSamples[i]);
                   myFuture.then((response) {
                     if (response != null) {
-                      // ignore: use_build_context_synchronously
                       toast(context, "Edited Sample", Colors.green);
                     } else {
-                      // ignore: use_build_context_synchronously
                       toast(context, "Error adding sample", Colors.red);
                     }
                   });
@@ -812,10 +719,8 @@ class _ListPageState extends State<ListPage> {
                   myFuture.then((response) {
                     if (response != null) {
                       print('this one is done archiving $i');
-                      // ignore: use_build_context_synchronously
                       toast(context, "Archived Sample", Colors.green);
                     } else {
-                      // ignore: use_build_context_synchronously
                       toast(context, "Error archiving sample", Colors.red);
                     }
                   });
@@ -837,7 +742,6 @@ class _ListPageState extends State<ListPage> {
         drawer: (container.admin)
             ? adminNavDrawer(context)
             : userNavDrawer(context),
-        //: userNavDrawer(context),
         appBar: topAppBar,
         body: makeBody,
         bottomNavigationBar: makeBottom,
