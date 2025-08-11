@@ -16,10 +16,8 @@ const _jwtKey = 'jwt';
 /// Provider for the [AuthRepository].
 /// This is where the business logic for authentication lives.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  final apiClient = ref.watch(apiClientProvider);
-  // We can't watch a FutureProvider directly in a regular Provider,
-  // so we will pass the ref to the repository to read it when needed.
-  return AuthRepository(apiClient: apiClient, ref: ref);
+  // We pass the ref to the repository so it can read other providers.
+  return AuthRepository(ref: ref);
 });
 
 /// Provider that exposes the current authentication state (the JWT).
@@ -66,12 +64,9 @@ final currentUserProvider = FutureProvider<User?>((ref) async {
 
 
 class AuthRepository {
-  final ApiClient _apiClient;
   final Ref _ref;
 
-  AuthRepository({required ApiClient apiClient, required Ref ref})
-      : _apiClient = apiClient,
-        _ref = ref;
+  AuthRepository({required Ref ref}) : _ref = ref;
 
   Future<SharedPreferences> get _prefs async => await _ref.read(sharedPreferencesProvider.future);
 
