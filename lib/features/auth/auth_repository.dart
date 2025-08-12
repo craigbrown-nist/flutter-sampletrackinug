@@ -62,6 +62,11 @@ final currentUserProvider = FutureProvider<User?>((ref) async {
   }
 });
 
+/// Provider to handle app initialization, specifically loading the JWT from storage.
+final appInitProvider = FutureProvider<void>((ref) async {
+  await ref.read(authRepositoryProvider).loadJwtFromStorage();
+});
+
 
 class AuthRepository {
   final Ref _ref;
