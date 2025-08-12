@@ -12,7 +12,7 @@ class CellsPageState {
   ];
 
   CellsPageState({
-    this.showFull = true,
+    this.showFull = false,
     this.cellTypeFilter = "Van A",
   });
 
