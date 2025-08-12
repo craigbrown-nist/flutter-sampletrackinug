@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:flutter/foundation.dart';
@@ -50,9 +51,9 @@ class AppDrawer extends ConsumerWidget {
             title: const Text('Logout'),
             onTap: () async {
               await ref.read(authRepositoryProvider).logout();
-              // Navigate to login screen after logout
+              // Navigate to the initial route, which will be handled by AuthChecker/GoRouter.
               // ignore: use_build_context_synchronously
-              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+              context.go('/');
             },
           ),
         ],
@@ -63,11 +64,8 @@ class AppDrawer extends ConsumerWidget {
   void _navigateTo(BuildContext context, String routeName) {
     // Close the drawer first
     Navigator.of(context).pop();
-    // Then navigate. A short delay ensures the drawer is closed before the new page appears.
-    Future.delayed(const Duration(milliseconds: 100), () {
-        // ignore: use_build_context_synchronously
-        Navigator.of(context).pushNamed(routeName);
-    });
+    // Then navigate using go_router.
+    context.go(routeName);
   }
 
   DrawerHeader _buildDrawerHeader(String userName) {
