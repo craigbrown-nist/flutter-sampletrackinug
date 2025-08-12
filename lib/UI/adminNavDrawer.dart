@@ -64,8 +64,8 @@ class AppDrawer extends ConsumerWidget {
   void _navigateTo(BuildContext context, String routeName) {
     // Close the drawer first
     Navigator.of(context).pop();
-    // Then navigate using go_router.
-    context.go(routeName);
+    // Then navigate using go_router's push method to preserve the back stack.
+    context.push(routeName);
   }
 
   DrawerHeader _buildDrawerHeader(String userName) {
