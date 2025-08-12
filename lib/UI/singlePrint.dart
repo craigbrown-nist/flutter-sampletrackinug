@@ -16,17 +16,12 @@ class singlePrinterPage extends StatefulWidget {
 // ignore: camel_case_types
 class _singlePrinterState extends State<singlePrinterPage> {
   InAppWebViewController? webViewController;
-  InAppWebViewGroupOptions options = InAppWebViewGroupOptions(
-      crossPlatform: InAppWebViewOptions(
+  InAppWebViewSettings options = InAppWebViewSettings(
         useShouldOverrideUrlLoading: false,
         mediaPlaybackRequiresUserGesture: false,
-      ),
-      android: AndroidInAppWebViewOptions(
         useHybridComposition: true,
-      ),
-      ios: IOSInAppWebViewOptions(
         allowsInlineMediaPlayback: false,
-      ));
+      );
 
   @override
   void initState() {
@@ -64,13 +59,7 @@ class _singlePrinterState extends State<singlePrinterPage> {
                 decoration:
                     BoxDecoration(border: Border.all(color: Colors.blueAccent)),
                 child: InAppWebView(
-                  initialUrlRequest: URLRequest(url: Uri.parse(url)),
-                  initialOptions: InAppWebViewGroupOptions(
-                      crossPlatform: InAppWebViewOptions(
-                    //useShouldOverrideUrlLoading: true,
-                    //debuggingEnabled: true,
-                    javaScriptEnabled: true,
-                  )),
+                  initialUrlRequest: URLRequest(url: WebUri(url)),
                   onWebViewCreated: (InAppWebViewController controller) {
                     webViewController = controller;
                   },
