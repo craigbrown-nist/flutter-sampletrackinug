@@ -65,63 +65,64 @@ class CellsPage extends ConsumerWidget {
   }
 
   void _showFilterSheet(BuildContext context, WidgetRef ref) {
-    final pageState = ref.read(cellsPageControllerProvider);
+    // We can read the controller once, as it doesn't change.
     final pageController = ref.read(cellsPageControllerProvider.notifier);
 
     showModalBottomSheet(
       context: context,
-      builder: (context) {
-        return StatefulBuilder( // Use StatefulBuilder for local state in the sheet
-          builder: (BuildContext context, StateSetter setSheetState) {
-            return Container(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SwitchListTile(
-                    title: const Text('Show Full Cells'),
-                    value: pageState.showFull,
-                    onChanged: (value) {
-                      pageController.setShowFull(value);
-                      // No need to call Navigator.pop, the UI will update automatically
-                    },
-                  ),
-                  const Divider(),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8.0),
-                    child: Text('Cell Type', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                  Wrap(
-                    spacing: 8.0,
-                    runSpacing: 4.0,
-                    children: CellsPageState.cellTypes.map((type) {
-                      return ChoiceChip(
-                        label: Text(type),
-                        selected: pageState.cellTypeFilter == type,
-                        onSelected: (isSelected) {
-                          if (isSelected) {
-                            pageController.setCellTypeFilter(type);
-                          }
-                        },
-                      );
-                    }).toList(),
-                  ),
-                   const SizedBox(height: 20),
-                  Center(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        // TODO: Implement Create New Cell Dialog
+      // Use a Consumer to rebuild the sheet contents when the state changes.
+      builder: (context) => Consumer(
+        builder: (context, ref, child) {
+          // Watch the provider inside the builder to get the latest state.
+          final pageState = ref.watch(cellsPageControllerProvider);
+
+          return Container(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SwitchListTile(
+                  title: const Text('Show Full Cells'),
+                  value: pageState.showFull,
+                  onChanged: (value) {
+                    pageController.setShowFull(value);
+                  },
+                ),
+                const Divider(),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                  child: Text('Cell Type', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                Wrap(
+                  spacing: 8.0,
+                  runSpacing: 4.0,
+                  children: CellsPageState.cellTypes.map((type) {
+                    return ChoiceChip(
+                      label: Text(type),
+                      selected: pageState.cellTypeFilter == type,
+                      onSelected: (isSelected) {
+                        if (isSelected) {
+                          pageController.setCellTypeFilter(type);
+                        }
                       },
-                      child: const Text('Create a New Sample Cell/Can'),
-                    ),
-                  )
-                ],
-              ),
-            );
-          },
-        );
-      },
+                    );
+                  }).toList(),
+                ),
+                 const SizedBox(height: 20),
+                Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      // TODO: Implement Create New Cell Dialog
+                    },
+                    child: const Text('Create a New Sample Cell/Can'),
+                  ),
+                )
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
