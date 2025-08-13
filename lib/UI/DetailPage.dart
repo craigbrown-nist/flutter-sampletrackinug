@@ -149,23 +149,7 @@ class _DetailPageState extends State<DetailPage> {
           expandedHeight: kExpandedHeight,
           //title:  Text( '_SliverAppBar')  ,
           flexibleSpace: FlexibleSpaceBar(
-            title: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: <Widget>[
-                Text(
-                  'ID: ${int.parse(widget.sample.sampleId.toString())}',
-                  style: const TextStyle(color: Colors.white, fontSize: 8.0),
-                ),
-                Text(
-                  widget.sample.chemical.toString(),
-                  style: const TextStyle(color: Colors.white, fontSize: 16.0),
-                ),
-                Text(
-                  sampText,
-                  style: const TextStyle(color: Colors.white, fontSize: 10.0),
-                ),
-              ],
-            ),
+            title: Text(widget.sample.chemical.toString(), style: const TextStyle(fontSize: 16.0)),
             background: Stack(
               fit: StackFit.expand,
               children: [
@@ -177,52 +161,40 @@ class _DetailPageState extends State<DetailPage> {
                     "assets/images/ncnr.jpg",
                     fit: BoxFit.cover,
                   ),
+                  fit: BoxFit.cover,
                 ),
-
-                // (sample.imageURL != "")
-                //     ? Image.network(
-                //         sample.imageURL,
-                //         fit: BoxFit.fitWidth,
-                //         loadingBuilder: (BuildContext context, Widget child,
-                //             ImageChunkEvent loadingProgress) {
-                //           if (loadingProgress == null) return child;
-                //           return Center(
-                //             child: CircularProgressIndicator(
-                //               value: loadingProgress.expectedTotalBytes != null
-                //                   ? loadingProgress.cumulativeBytesLoaded /
-                //                       loadingProgress.expectedTotalBytes
-                //                   : Image.asset(
-                //                       "assets/images/ncnr.jpg",
-                //                       fit: BoxFit.cover,
-                //                     ),
-                //             ),
-                //           );
-                //         },
-                //       )
-                //     : Image.asset(
-                //         "assets/images/ncnr.jpg",
-                //         fit: BoxFit.cover,
-                //       ),
-
-                // (sample.imageURL != "")
-                //     ? Image.network(
-                //         sample.imageURL,
-                //         fit: BoxFit.cover,
-                //       )
-                //     : Image.asset(
-                //         "assets/images/ncnr.jpg",
-                //         fit: BoxFit.cover,
-                //       ),
                 const DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      begin: Alignment(0.0, 0.7),
-                      end: Alignment(0.0, 0.3),
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.center,
                       colors: <Color>[
-                        Color(0x60000000),
-                        Color(0x00000000),
+                        Colors.black54,
+                        Colors.transparent,
                       ],
                     ),
+                  ),
+                ),
+                // Adding the detailed text to the bottom of the background
+                Positioned(
+                  bottom: 16.0,
+                  left: 16.0,
+                  right: 16.0,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                       Text(
+                        'ID: ${int.parse(widget.sample.sampleId.toString())}',
+                        style: const TextStyle(color: Colors.white, fontSize: 10.0, shadows: [Shadow(blurRadius: 2.0)]),
+                      ),
+                      Text(
+                        sampText,
+                        style: const TextStyle(color: Colors.white, fontSize: 12.0, shadows: [Shadow(blurRadius: 2.0)]),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
               ],
