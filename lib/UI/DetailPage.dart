@@ -118,23 +118,14 @@ class _DetailPageState extends State<DetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    print(widget.sample.imageURL.toString());
-    //lets check we can read from the network image
-    CachedNetworkImage.logLevel = CacheManagerLogLevel.debug;
-
-    String sampText = widget.sample.sampleName.toString();
-    if (widget.sample.haz1 != null) {
-      sampText = '$sampText\nHazards:\n${widget.sample.haz1}';
-    }
-    if (widget.sample.haz2 != null) {
-      sampText = '$sampText, ${widget.sample.haz2}';
-    }
-    if (widget.sample.haz3 != null) {
-      sampText = '$sampText, ${widget.sample.haz3}';
-    }
-    if (widget.sample.haz4 != null) {
-      sampText = '$sampText, ${widget.sample.haz4}';
-    }
+    // Prepare hazard text separately for clarity and styling.
+    final List<String> hazardStrings = [
+      if (widget.sample.haz1 != null) widget.sample.haz1!,
+      if (widget.sample.haz2 != null) widget.sample.haz2!,
+      if (widget.sample.haz3 != null) widget.sample.haz3!,
+      if (widget.sample.haz4 != null) widget.sample.haz4!,
+    ];
+    final String hazardText = hazardStrings.isNotEmpty ? 'Hazards: ${hazardStrings.join(', ')}' : '';
 
     return Scaffold(
       body: CustomScrollView(slivers: <Widget>[
@@ -147,7 +138,6 @@ class _DetailPageState extends State<DetailPage> {
             },
           ),
           expandedHeight: kExpandedHeight,
-          //title:  Text( '_SliverAppBar')  ,
           flexibleSpace: FlexibleSpaceBar(
             title: Text(widget.sample.chemical.toString(), style: const TextStyle(fontSize: 16.0)),
             background: Stack(
@@ -189,11 +179,22 @@ class _DetailPageState extends State<DetailPage> {
                         style: const TextStyle(color: Colors.white, fontSize: 10.0, shadows: [Shadow(blurRadius: 2.0)]),
                       ),
                       Text(
-                        sampText,
+                        widget.sample.sampleName.toString(),
                         style: const TextStyle(color: Colors.white, fontSize: 12.0, shadows: [Shadow(blurRadius: 2.0)]),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
+                      if (hazardText.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4.0),
+                          child: Text(
+                            hazardText,
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 12.0,
+                              fontWeight: FontWeight.bold,
+                              shadows: [Shadow(blurRadius: 2.0)]
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
