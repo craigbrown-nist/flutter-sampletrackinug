@@ -95,10 +95,13 @@ final filteredSamplesProvider = Provider<AsyncValue<List<Sample>>>((ref) {
 
   return samplesAsyncValue.when(
     data: (samples) {
-      // 1. Filter by search query
+      // 1. Filter out archived samples first.
+      final unarchivedSamples = samples.where((s) => s.archived != "1").toList();
+
+      // 2. Filter by search query on the unarchived list
       final filteredList = pageState.searchQuery.isEmpty
-          ? samples
-          : samples.where((sample) {
+          ? unarchivedSamples
+          : unarchivedSamples.where((sample) {
               final query = pageState.searchQuery.toLowerCase();
               return (sample.sampleId?.toLowerCase().contains(query) ?? false) ||
                      (sample.sampleName?.toLowerCase().contains(query) ?? false) ||

@@ -89,6 +89,8 @@ class ListPage extends ConsumerWidget {
       itemBuilder: (context, index) {
         final sample = samples[index];
         final isSelected = pageState.selectedSampleIds.contains(sample.sampleId);
+        final hasHazard = sample.hazards?.isNotEmpty ?? false;
+        final textColor = hasHazard ? Colors.red : null;
 
         return InkWell(
           onTap: () {
@@ -110,10 +112,16 @@ class ListPage extends ConsumerWidget {
             }
           },
           child: Container(
-            color: isSelected ? Colors.blue.withValues(alpha :0.3) : Colors.transparent,
+            color: isSelected ? Colors.blue.withOpacity(0.3) : Colors.transparent,
             child: ListTile(
-              leading: Text(sample.sampleId ?? 'N/A'),
-              title: Text(sample.chemical ?? 'Unknown Chemical'),
+              leading: Text(
+                sample.sampleId ?? 'N/A',
+                style: TextStyle(color: textColor),
+              ),
+              title: Text(
+                sample.chemical ?? 'Unknown Chemical',
+                style: TextStyle(color: textColor),
+              ),
               trailing: pageState.isSelectionMode
                   ? Icon(isSelected ? Icons.check_box : Icons.check_box_outline_blank)
                   : const Icon(Icons.keyboard_arrow_right),
