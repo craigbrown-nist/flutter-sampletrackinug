@@ -15,8 +15,9 @@ class ListPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final samplesAsyncValue = ref.watch(userSamplesProvider);
-    final filteredSamples = ref.watch(filteredSamplesProvider);
+    // Watch the filtered provider to get the async state of the filtered list.
+    final filteredSamplesAsync = ref.watch(filteredSamplesProvider);
+    // We still need pageState and pageController for other parts of the UI.
     final pageState = ref.watch(listPageControllerProvider);
     final pageController = ref.read(listPageControllerProvider.notifier);
 
@@ -24,8 +25,9 @@ class ListPage extends ConsumerWidget {
       // For simplicity, using the old drawer. This would also be refactored.
       drawer: const AppDrawer(),
       appBar: _buildAppBar(context, ref),
-      body: samplesAsyncValue.when(
-        data: (_) => _buildSampleList(filteredSamples, pageState, pageController),
+      // Use the new async provider to build the body.
+      body: filteredSamplesAsync.when(
+        data: (samples) => _buildSampleList(samples, pageState, pageController),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error: ${err.toString()}')),
       ),

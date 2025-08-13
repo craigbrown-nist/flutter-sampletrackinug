@@ -89,7 +89,7 @@ final listPageControllerProvider =
 });
 
 // 4. (Optional) Create computed providers (selectors) for convenience
-final filteredSamplesProvider = Provider<List<Sample>>((ref) {
+final filteredSamplesProvider = Provider<AsyncValue<List<Sample>>>((ref) {
   final samplesAsyncValue = ref.watch(userSamplesProvider);
   final pageState = ref.watch(listPageControllerProvider);
 
@@ -119,9 +119,9 @@ final filteredSamplesProvider = Provider<List<Sample>>((ref) {
         return pageState.sortDirection == SortDirection.asc ? comparison : -comparison;
       });
 
-      return filteredList;
+      return AsyncValue.data(filteredList);
     },
-    loading: () => [],
-    error: (e, st) => [],
+    loading: () => const AsyncValue.loading(),
+    error: (e, st) => AsyncValue.error(e, st),
   );
 });
