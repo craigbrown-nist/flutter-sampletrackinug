@@ -49,6 +49,9 @@ class _EditContentState extends ConsumerState<EditContent> {
 
   @override
   void initState() {
+    if (widget.status == "clone") {
+  widget.sample.sampleId = '';
+}
     super.initState();
      if (kIsWeb || Platform.isWindows) {
       _fetchCameras();
