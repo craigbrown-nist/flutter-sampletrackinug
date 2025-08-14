@@ -1152,126 +1152,132 @@ class _EditContentState extends State<EditContent> {
                                     locationList = locationOptionsOther;
                                   }
                                   // set the first items as default
-                                  location = locationList[0];
-
-                                  if (location == 'BT1') {
-                                    locationidList = bt1locid;
-                                  } else if (location == 'BT2') {
-                                    locationidList = bt2locid;
-                                  } else if (location == 'BT4') {
-                                    locationidList = bt4locid;
-                                  } else if (location == 'BT5') {
-                                    locationidList = bt5locid;
-                                  } else if (location == 'BT7') {
-                                    locationidList = bt7locid;
-                                  } else if (location == 'BT8') {
-                                    locationidList = bt8locid;
-                                  } else if (location == 'MACS') {
-                                    locationidList = macslocid;
-                                  } else if (location == 'East') {
-                                    locationidList = guideEASTlocid;
-                                  } else if (location == 'North') {
-                                    locationidList = guideNORTHlocid;
-                                  } else if (location == 'SPINS') {
-                                    locationidList = guideSPINSlocid;
-                                  } else if (location == 'A115') {
-                                    locationidList = a115locid;
-                                  } else if (location == 'A117') {
-                                    locationidList = a117locid;
-                                  } else if (location == 'A127') {
-                                    locationidList = a127locid;
-                                  } else if (location == 'A132') {
-                                    locationidList = a132locid;
-                                  } else if (location == 'B147') {
-                                    locationidList = b147locid;
-                                  } else if (location == 'B142') {
-                                    locationidList = b142locid;
-                                  } else if (location == 'E131') {
-                                    locationidList = e131locid;
-                                  } else if (location == 'E133') {
-                                    locationidList = e133locid;
-                                  } else if (location == 'E132') {
-                                    locationidList = e132locid;
-                                  } else if (location == 'E134') {
-                                    locationidList = e134locid;
-                                  } else if (location == 'E135') {
-                                    locationidList = e135locid;
-                                  } else if (location == 'E136') {
-                                    locationidList = e136locid;
-                                  } else if (location == 'E137') {
-                                    locationidList = e137locid;
-                                  } else if (location == 'E138') {
-                                    locationidList = e138locid;
-                                  } else if (location == 'HP_Clear') {
-                                    locationidList = hplocid;
-                                  } else if (location == 'Shipped back') {
-                                    locationidList = shiplocid;
-                                  } else if (location == 'Waste') {
-                                    locationidList = [""];
-                                  } else {
-                                    locationidList = guideINSTlocid;
+                                  if (locationList.isNotEmpty) {
+                                    location = locationList[0];
+                                    if (location == 'BT1') {
+                                      locationidList = bt1locid;
+                                    } else if (location == 'BT2') {
+                                      locationidList = bt2locid;
+                                    } else if (location == 'BT4') {
+                                      locationidList = bt4locid;
+                                    } else if (location == 'BT5') {
+                                      locationidList = bt5locid;
+                                    } else if (location == 'BT7') {
+                                      locationidList = bt7locid;
+                                    } else if (location == 'BT8') {
+                                      locationidList = bt8locid;
+                                    } else if (location == 'MACS') {
+                                      locationidList = macslocid;
+                                    } else if (location == 'East') {
+                                      locationidList = guideEASTlocid;
+                                    } else if (location == 'North') {
+                                      locationidList = guideNORTHlocid;
+                                    } else if (location == 'SPINS') {
+                                      locationidList = guideSPINSlocid;
+                                    } else if (location == 'A115') {
+                                      locationidList = a115locid;
+                                    } else if (location == 'A117') {
+                                      locationidList = a117locid;
+                                    } else if (location == 'A127') {
+                                      locationidList = a127locid;
+                                    } else if (location == 'A132') {
+                                      locationidList = a132locid;
+                                    } else if (location == 'B147') {
+                                      locationidList = b147locid;
+                                    } else if (location == 'B142') {
+                                      locationidList = b142locid;
+                                    } else if (location == 'E131') {
+                                      locationidList = e131locid;
+                                    } else if (location == 'E133') {
+                                      locationidList = e133locid;
+                                    } else if (location == 'E132') {
+                                      locationidList = e132locid;
+                                    } else if (location == 'E134') {
+                                      locationidList = e134locid;
+                                    } else if (location == 'E135') {
+                                      locationidList = e135locid;
+                                    } else if (location == 'E136') {
+                                      locationidList = e136locid;
+                                    } else if (location == 'E137') {
+                                      locationidList = e137locid;
+                                    } else if (location == 'E138') {
+                                      locationidList = e138locid;
+                                    } else if (location == 'HP_Clear') {
+                                      locationidList = hplocid;
+                                    } else if (location == 'Shipped back') {
+                                      locationidList = shiplocid;
+                                    } else if (location == 'Waste') {
+                                      locationidList = [""];
+                                    } else {
+                                      locationidList = guideINSTlocid;
+                                    }
+                                    if (locationidList.isNotEmpty) {
+                                      locationid = locationidList[0];
+                                      if (locationid == 'Black Cab') {
+                                        drawerList = cabinetdrawer;
+                                      } else if (locationid == 'Beige Cab') {
+                                        drawerList = cabinetdrawer;
+                                      } else if (locationid == 'Grey Cab') {
+                                        drawerList = cabinetdrawer;
+                                      } else if (locationid == 'Cream Cab') {
+                                        drawerList = otherdrawer;
+                                      } else if (locationid == 'Cabinet') {
+                                        drawerList = otherdrawer;
+                                      } else if (locationid == 'Bank 2') {
+                                        drawerList = bankdrawer;
+                                      } else if (locationid == 'Bank 13') {
+                                        drawerList = bankdrawer;
+                                      } else if (locationid == 'Bank 14') {
+                                        drawerList = bankdrawer;
+                                      } else if (locationid == 'Bank 15') {
+                                        drawerList = bankdrawer;
+                                      } else if (locationid == 'Bank 16') {
+                                        drawerList = bankdrawer;
+                                      } else if (locationid == 'Bank 18') {
+                                        drawerList = bankdrawer;
+                                      } else if (locationid == 'Bank 19') {
+                                        drawerList = bankdrawer;
+                                      } else if (locationid == 'Bank 17') {
+                                        drawerList = bankdrawer;
+                                      } else if (locationid == 'Bank 4') {
+                                        drawerList = bankdrawer;
+                                      } else if (locationid == 'Bank 7') {
+                                        drawerList = bankdrawer;
+                                      } else if (locationid == 'Bank 20') {
+                                        drawerList = bankdrawer;
+                                      } else if (locationid == 'Bank 21') {
+                                        drawerList = bankdrawer;
+                                      } else if (locationid == 'Bank 22') {
+                                        drawerList = bankdrawer;
+                                      } else if (locationid == 'Bank 23') {
+                                        drawerList = bankdrawer;
+                                      } else if (locationid == 'Bank 24') {
+                                        drawerList = bankdrawer;
+                                      } else if (locationid == 'Bank 25') {
+                                        drawerList = bankdrawer;
+                                      } else if (locationid == 'Freezer') {
+                                        drawerList = drawer5;
+                                      } else if (locationid == 'Argon box') {
+                                        drawerList = drawer4;
+                                      } else if (locationid ==
+                                          'Freezer4-Left') {
+                                        drawerList = drawer4;
+                                      } else if (locationid ==
+                                          'Freezer4-Right') {
+                                        drawerList = drawer4;
+                                      } else if (locationid == 'Fridge-Left') {
+                                        drawerList = drawer6;
+                                      } else if (locationid ==
+                                          'Fridge-Right') {
+                                        drawerList = drawer6;
+                                      } else {
+                                        drawerList = [""];
+                                      }
+                                      if (drawerList.isNotEmpty) {
+                                        drawer = drawerList[0];
+                                      }
+                                    }
                                   }
-                                  // set the first item as default
-                                  locationid = locationidList[0];
-                                  if (locationid == 'Black Cab') {
-                                    drawerList = cabinetdrawer;
-                                  } else if (locationid == 'Beige Cab') {
-                                    drawerList = cabinetdrawer;
-                                  } else if (locationid == 'Grey Cab') {
-                                    drawerList = cabinetdrawer;
-                                  } else if (locationid == 'Cream Cab') {
-                                    drawerList = otherdrawer;
-                                  } else if (locationid == 'Cabinet') {
-                                    drawerList = otherdrawer;
-                                  } else if (locationid == 'Bank 2') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 13') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 14') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 15') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 16') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 18') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 19') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 17') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 4') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 7') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 20') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 21') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 22') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 23') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 24') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 25') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Freezer') {
-                                    drawerList = drawer5;
-                                  } else if (locationid == 'Argon box') {
-                                    drawerList = drawer4;
-                                  } else if (locationid == 'Freezer4-Left') {
-                                    drawerList = drawer4;
-                                  } else if (locationid == 'Freezer4-Right') {
-                                    drawerList = drawer4;
-                                  } else if (locationid == 'Fridge-Left') {
-                                    drawerList = drawer6;
-                                  } else if (locationid == 'Fridge-Right') {
-                                    drawerList = drawer6;
-                                  } else {
-                                    drawerList = [""];
-                                  }
-                                  drawer = drawerList[0];
-                                  // get new values for next list
                                 });
                               },
                               items: placeOptions
@@ -1370,65 +1376,70 @@ class _EditContentState extends State<EditContent> {
                                     locationidList = guideINSTlocid;
                                   }
                                   // set the first item as default
-                                  locationid = locationidList[0];
-                                  if (locationid == 'Black Cab') {
-                                    drawerList = cabinetdrawer;
-                                  } else if (locationid == 'Beige Cab') {
-                                    drawerList = cabinetdrawer;
-                                  } else if (locationid == 'Grey Cab') {
-                                    drawerList = cabinetdrawer;
-                                  } else if (locationid == 'Cream Cab') {
-                                    drawerList = otherdrawer;
-                                  } else if (locationid == 'Cabinet') {
-                                    drawerList = otherdrawer;
-                                  } else if (locationid == 'Bank 2') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 13') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 14') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 15') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 16') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 18') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 19') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 17') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 4') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 7') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 20') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 21') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 22') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 23') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 24') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Bank 25') {
-                                    drawerList = bankdrawer;
-                                  } else if (locationid == 'Freezer') {
-                                    drawerList = drawer5;
-                                  } else if (locationid == 'Argon box') {
-                                    drawerList = drawer4;
-                                  } else if (locationid == 'Freezer4-Left') {
-                                    drawerList = drawer4;
-                                  } else if (locationid == 'Freezer4-Right') {
-                                    drawerList = drawer4;
-                                  } else if (locationid == 'Fridge-Left') {
-                                    drawerList = drawer6;
-                                  } else if (locationid == 'Fridge-Right') {
-                                    drawerList = drawer6;
-                                  } else {
-                                    drawerList = [""];
+                                  if (locationidList.isNotEmpty) {
+                                    locationid = locationidList[0];
+                                    if (locationid == 'Black Cab') {
+                                      drawerList = cabinetdrawer;
+                                    } else if (locationid == 'Beige Cab') {
+                                      drawerList = cabinetdrawer;
+                                    } else if (locationid == 'Grey Cab') {
+                                      drawerList = cabinetdrawer;
+                                    } else if (locationid == 'Cream Cab') {
+                                      drawerList = otherdrawer;
+                                    } else if (locationid == 'Cabinet') {
+                                      drawerList = otherdrawer;
+                                    } else if (locationid == 'Bank 2') {
+                                      drawerList = bankdrawer;
+                                    } else if (locationid == 'Bank 13') {
+                                      drawerList = bankdrawer;
+                                    } else if (locationid == 'Bank 14') {
+                                      drawerList = bankdrawer;
+                                    } else if (locationid == 'Bank 15') {
+                                      drawerList = bankdrawer;
+                                    } else if (locationid == 'Bank 16') {
+                                      drawerList = bankdrawer;
+                                    } else if (locationid == 'Bank 18') {
+                                      drawerList = bankdrawer;
+                                    } else if (locationid == 'Bank 19') {
+                                      drawerList = bankdrawer;
+                                    } else if (locationid == 'Bank 17') {
+                                      drawerList = bankdrawer;
+                                    } else if (locationid == 'Bank 4') {
+                                      drawerList = bankdrawer;
+                                    } else if (locationid == 'Bank 7') {
+                                      drawerList = bankdrawer;
+                                    } else if (locationid == 'Bank 20') {
+                                      drawerList = bankdrawer;
+                                    } else if (locationid == 'Bank 21') {
+                                      drawerList = bankdrawer;
+                                    } else if (locationid == 'Bank 22') {
+                                      drawerList = bankdrawer;
+                                    } else if (locationid == 'Bank 23') {
+                                      drawerList = bankdrawer;
+                                    } else if (locationid == 'Bank 24') {
+                                      drawerList = bankdrawer;
+                                    } else if (locationid == 'Bank 25') {
+                                      drawerList = bankdrawer;
+                                    } else if (locationid == 'Freezer') {
+                                      drawerList = drawer5;
+                                    } else if (locationid == 'Argon box') {
+                                      drawerList = drawer4;
+                                    } else if (locationid == 'Freezer4-Left') {
+                                      drawerList = drawer4;
+                                    } else if (locationid ==
+                                        'Freezer4-Right') {
+                                      drawerList = drawer4;
+                                    } else if (locationid == 'Fridge-Left') {
+                                      drawerList = drawer6;
+                                    } else if (locationid == 'Fridge-Right') {
+                                      drawerList = drawer6;
+                                    } else {
+                                      drawerList = [""];
+                                    }
+                                    if (drawerList.isNotEmpty) {
+                                      drawer = drawerList[0];
+                                    }
                                   }
-                                  drawer = drawerList[0];
                                 });
                               },
                               items: locationList
@@ -1518,7 +1529,8 @@ class _EditContentState extends State<EditContent> {
                                       drawerList = drawer4;
                                     } else if (locationid == 'Freezer4-Left') {
                                       drawerList = drawer4;
-                                    } else if (locationid == 'Freezer4-Right') {
+                                    } else if (locationid ==
+                                        'Freezer4-Right') {
                                       drawerList = drawer4;
                                     } else if (locationid == 'Fridge-Left') {
                                       drawerList = drawer6;
@@ -1527,8 +1539,9 @@ class _EditContentState extends State<EditContent> {
                                     } else {
                                       drawerList = [""];
                                     }
-                                    drawer = drawerList[0];
-                                    // set the first item as default
+                                    if (drawerList.isNotEmpty) {
+                                      drawer = drawerList[0];
+                                    }
                                   });
                                 },
                                 items: locationidList
@@ -1566,67 +1579,6 @@ class _EditContentState extends State<EditContent> {
                                 onChanged: (newValue) {
                                   setState(() {
                                     drawer = newValue!;
-                                    //empty other values
-                                    drawerList = [];
-                                    // get new values for next list
-                                    if (locationid == 'Black Cab') {
-                                      drawerList = cabinetdrawer;
-                                    } else if (locationid == 'Beige Cab') {
-                                      drawerList = cabinetdrawer;
-                                    } else if (locationid == 'Grey Cab') {
-                                      drawerList = cabinetdrawer;
-                                    } else if (locationid == 'Cream Cab') {
-                                      drawerList = otherdrawer;
-                                    } else if (locationid == 'Cabinet') {
-                                      drawerList = otherdrawer;
-                                    } else if (locationid == 'Bank 2') {
-                                      drawerList = bankdrawer;
-                                    } else if (locationid == 'Bank 13') {
-                                      drawerList = bankdrawer;
-                                    } else if (locationid == 'Bank 14') {
-                                      drawerList = bankdrawer;
-                                    } else if (locationid == 'Bank 15') {
-                                      drawerList = bankdrawer;
-                                    } else if (locationid == 'Bank 16') {
-                                      drawerList = bankdrawer;
-                                    } else if (locationid == 'Bank 18') {
-                                      drawerList = bankdrawer;
-                                    } else if (locationid == 'Bank 19') {
-                                      drawerList = bankdrawer;
-                                    } else if (locationid == 'Bank 17') {
-                                      drawerList = bankdrawer;
-                                    } else if (locationid == 'Bank 4') {
-                                      drawerList = bankdrawer;
-                                    } else if (locationid == 'Bank 7') {
-                                      drawerList = bankdrawer;
-                                    } else if (locationid == 'Bank 20') {
-                                      drawerList = bankdrawer;
-                                    } else if (locationid == 'Bank 21') {
-                                      drawerList = bankdrawer;
-                                    } else if (locationid == 'Bank 22') {
-                                      drawerList = bankdrawer;
-                                    } else if (locationid == 'Bank 23') {
-                                      drawerList = bankdrawer;
-                                    } else if (locationid == 'Bank 24') {
-                                      drawerList = bankdrawer;
-                                    } else if (locationid == 'Bank 25') {
-                                      drawerList = bankdrawer;
-                                    } else if (locationid == 'Freezer') {
-                                      drawerList = drawer5;
-                                    } else if (locationid == 'Argon box') {
-                                      drawerList = drawer4;
-                                    } else if (locationid == 'Freezer4-Left') {
-                                      drawerList = drawer4;
-                                    } else if (locationid == 'Freezer4-Right') {
-                                      drawerList = drawer4;
-                                    } else if (locationid == 'Fridge-Left') {
-                                      drawerList = drawer6;
-                                    } else if (locationid == 'Fridge-Right') {
-                                      drawerList = drawer6;
-                                    } else {
-                                      drawerList = [""];
-                                    }
-                                    // set the first item as default
                                   });
                                 },
                                 items: drawerList
