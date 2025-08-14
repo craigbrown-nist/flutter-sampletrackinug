@@ -139,8 +139,7 @@ class _DetailPageState extends State<DetailPage> {
           ),
           expandedHeight: kExpandedHeight,
           flexibleSpace: FlexibleSpaceBar(
-            title: Text(widget.sample.chemical.toString(), style: const TextStyle(fontSize: 16.0)),
-            background: Stack(
+             background: Stack(
               fit: StackFit.expand,
               children: [
                 CachedNetworkImage(
@@ -174,12 +173,16 @@ class _DetailPageState extends State<DetailPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
+                        Text(
+                        'Chem: ${(widget.sample.chemical.toString())}',
+                        style: const TextStyle(color: Colors.white, fontSize: 16.0, shadows: [Shadow(blurRadius: 2.0)]),
+                      ),
                        Text(
                         'ID: ${int.parse(widget.sample.sampleId.toString())}',
                         style: const TextStyle(color: Colors.white, fontSize: 10.0, shadows: [Shadow(blurRadius: 2.0)]),
                       ),
                       Text(
-                        widget.sample.sampleName.toString(),
+                         'Name: ${(widget.sample.sampleName.toString())}', 
                         style: const TextStyle(color: Colors.white, fontSize: 12.0, shadows: [Shadow(blurRadius: 2.0)]),
                       ),
                       if (hazardText.isNotEmpty)
