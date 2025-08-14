@@ -29,7 +29,7 @@ class EditContent extends ConsumerStatefulWidget {
   final Sample sample;
   final String status;
 
-  const EditContent({super.key, required this.sample, required this.status});
+  const EditContent({super.key, required this.sample, this.status = "edit"});
 
   @override
   _EditContentState createState() => _EditContentState();
