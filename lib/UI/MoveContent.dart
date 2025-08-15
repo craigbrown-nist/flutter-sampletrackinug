@@ -307,6 +307,7 @@ class _MoveContentState extends ConsumerState<MoveContent> {
 
   Future<void> _submitMove() async {
     if (!_fbKey.currentState!.saveAndValidate()) return;
+    final values = _fbKey.currentState!.value;
 
     final jwt = ref.read(authStateProvider);
     if (jwt == null) {
@@ -314,16 +315,16 @@ class _MoveContentState extends ConsumerState<MoveContent> {
       return;
     }
 
-    // Construct the new location string from the current state
+    // Construct the new location string from the form values
     final newLocationString =
-        "${place ?? ''}/${location ?? ''}/${locationid ?? ''}/${drawer ?? ''}";
+        "${values['place'] ?? ''}/${values['location'] ?? ''}/${values['locationid'] ?? ''}/${values['drawer'] ?? ''}";
 
     // Create an updated sample object using copyWith
     final sampleToUpdate = widget.sample.copyWith(
-      place: place,
-      location: location,
-      locationid: locationid,
-      drawer: drawer,
+      place: values['place'],
+      location: values['location'],
+      locationid: values['locationid'],
+      drawer: values['drawer'],
       locationString: newLocationString,
       date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
     );
@@ -336,7 +337,6 @@ class _MoveContentState extends ConsumerState<MoveContent> {
       ref.invalidate(userSamplesProvider);
       ref.invalidate(allSamplesProvider);
 
-      toast(context, "Sample moved successfully!", Colors.green);
       Navigator.of(context).pop(sampleToUpdate);
 
     } catch (e) {
@@ -371,18 +371,22 @@ class _MoveContentState extends ConsumerState<MoveContent> {
     );
   }
 
-  Widget _buildDropdown(String hint, String? value, List<String> items, ValueChanged<String?> onChanged) {
+  Widget _buildDropdown(String name, String hint, String? value, List<String> items, ValueChanged<String?> onChanged) {
     if (items.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: DropdownButtonFormField<String>(
-        value: items.contains(value) ? value : null,
+      child: FormBuilderDropdown<String>(
+        name: name,
+        initialValue: items.contains(value) ? value : null,
         isExpanded: true,
         hint: Text(hint),
         items: items.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
         onChanged: onChanged,
-        decoration: const InputDecoration(border: OutlineInputBorder()),
+        decoration: InputDecoration(
+          labelText: hint,
+          border: const OutlineInputBorder()
+        ),
       ),
     );
   }

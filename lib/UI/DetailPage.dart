@@ -84,6 +84,7 @@ class _DetailPageState extends State<DetailPage> {
               setState(() {
                 _currentSample = updatedSample;
               });
+              toast(context, "Sample updated successfully!", Colors.green);
             }
           },
           label: 'Edit',
@@ -106,6 +107,7 @@ class _DetailPageState extends State<DetailPage> {
               setState(() {
                 _currentSample = updatedSample;
               });
+              toast(context, "Sample moved successfully!", Colors.green);
             }
           },
           label: 'Quick Edit',

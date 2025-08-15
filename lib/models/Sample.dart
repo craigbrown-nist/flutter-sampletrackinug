@@ -165,7 +165,7 @@ class Sample {
     extraNotes = json['extra_notes'] ?? json['extra_notes'];
     ip = json['ip'] ?? json['ip'];
     modified = json['modified'] ?? json['modified'];
-    imageURL = json['imageURL'] ?? json['modified'];
+    imageURL = json['imageURL'];
     if (json['hazards'] != null) {
       var i = 0;
       hazards = List<Hazards>.empty(growable: true);

@@ -614,9 +614,9 @@ class _EditContentState extends ConsumerState<EditContent> {
     final values = _fbKey.currentState!.value;
     final originalSample = widget.sample;
 
-    // Construct the new location string from the current state
+    // Construct the new location string from the form values
     final newLocationString =
-        "${place ?? ''}/${location ?? ''}/${locationid ?? ''}/${drawer ?? ''}";
+        "${values['place'] ?? ''}/${values['location'] ?? ''}/${values['locationid'] ?? ''}/${values['drawer'] ?? ''}";
 
     // Create a new sample object from the form data, preserving original data where needed.
     return Sample(
@@ -637,10 +637,10 @@ class _EditContentState extends ConsumerState<EditContent> {
       form: values['form'],
       date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
       extraNotes: values['extra_notes'],
-      place: place,
-      location: location,
-      locationid: locationid,
-      drawer: drawer,
+      place: values['place'],
+      location: values['location'],
+      locationid: values['locationid'],
+      drawer: values['drawer'],
       locationString: newLocationString,
       haz1: values['Haz1'],
       haz2: values['Haz2'],
@@ -658,21 +658,25 @@ class _EditContentState extends ConsumerState<EditContent> {
     return file;
   }
 
-  Widget _buildDropdown(String hint, String? value, List<String> items,
+  Widget _buildDropdown(String name, String hint, String? value, List<String> items,
       ValueChanged<String?> onChanged) {
     if (items.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: DropdownButtonFormField<String>(
-        value: items.contains(value) ? value : null,
+      child: FormBuilderDropdown<String>(
+        name: name,
+        initialValue: value,
         isExpanded: true,
         hint: Text(hint),
         items: items
             .map((item) => DropdownMenuItem(value: item, child: Text(item)))
             .toList(),
         onChanged: onChanged,
-        decoration: const InputDecoration(border: OutlineInputBorder()),
+        decoration: InputDecoration(
+          labelText: hint,
+          border: const OutlineInputBorder()
+        ),
       ),
     );
   }
@@ -711,7 +715,10 @@ class _EditContentState extends ConsumerState<EditContent> {
             'Haz4': widget.sample.haz4,
             'units': widget.sample.unit ?? 'g',
             'form': widget.sample.form ?? 'Powder',
-            // Location fields would be here, managed with local state like in myMoveDialog
+            'place': widget.sample.place,
+            'location': widget.sample.location,
+            'locationid': widget.sample.locationid,
+            'drawer': widget.sample.drawer,
           },
           child: Column(
             children: [
@@ -777,13 +784,14 @@ class _EditContentState extends ConsumerState<EditContent> {
               const SizedBox(height: 20),
               const Text("Location",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              _buildDropdown('Place', place, placeOptions, _onPlaceChanged),
               _buildDropdown(
-                  'Location', location, locationList, _onLocationChanged),
-              _buildDropdown('Location ID', locationid, locationidList,
-                  _onLocationIdChanged),
-              _buildDropdown(
-                  'Drawer/Shelf', drawer, drawerList, _onDrawerChanged),
+                  'place', 'Place', place, placeOptions, _onPlaceChanged),
+              _buildDropdown('location', 'Location', location, locationList,
+                  _onLocationChanged),
+              _buildDropdown('locationid', 'Location ID', locationid,
+                  locationidList, _onLocationIdChanged),
+              _buildDropdown('drawer', 'Drawer/Shelf', drawer, drawerList,
+                  _onDrawerChanged),
               const SizedBox(height: 20),
               FormBuilderTextField(
                 name: "extra_notes",
