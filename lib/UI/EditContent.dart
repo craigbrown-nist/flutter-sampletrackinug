@@ -628,9 +628,9 @@ class _EditContentState extends ConsumerState<EditContent> {
       finalOwner = currentUsername;
     }
 
-    // Construct the new location string from the form values
+    // Construct the new location string from the local state variables
     final newLocationString =
-        "${values['place'] ?? ''}/${values['location'] ?? ''}/${values['locationid'] ?? ''}/${values['drawer'] ?? ''}";
+        "${place ?? ''}/${location ?? ''}/${locationid ?? ''}/${drawer ?? ''}";
 
     // Create a new sample object from the form data, preserving original data where needed.
     return Sample(
@@ -651,10 +651,10 @@ class _EditContentState extends ConsumerState<EditContent> {
       form: values['form'],
       date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
       extraNotes: values['extra_notes'],
-      place: values['place'],
-      location: values['location'],
-      locationid: values['locationid'],
-      drawer: values['drawer'],
+      place: place,
+      location: location,
+      locationid: locationid,
+      drawer: drawer,
       locationString: newLocationString,
       haz1: values['Haz1'],
       haz2: values['Haz2'],
@@ -672,15 +672,14 @@ class _EditContentState extends ConsumerState<EditContent> {
     return file;
   }
 
-  Widget _buildDropdown(String name, String hint, String? value, List<String> items,
+  Widget _buildDropdown(String hint, String? value, List<String> items,
       ValueChanged<String?> onChanged) {
     if (items.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: FormBuilderDropdown<String>(
-        name: name,
-        initialValue: value,
+      child: DropdownButtonFormField<String>(
+        value: items.contains(value) ? value : null,
         isExpanded: true,
         hint: Text(hint),
         items: items
@@ -729,10 +728,6 @@ class _EditContentState extends ConsumerState<EditContent> {
             'Haz4': widget.sample.haz4,
             'units': widget.sample.unit ?? 'g',
             'form': widget.sample.form ?? 'Powder',
-            'place': place,
-            'location': location,
-            'locationid': locationid,
-            'drawer': drawer,
           },
           child: Column(
             children: [
@@ -798,12 +793,12 @@ class _EditContentState extends ConsumerState<EditContent> {
               const SizedBox(height: 20),
               const Text("Location",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              _buildDropdown('place', 'Place', place, placeOptions, _onPlaceChanged),
-              _buildDropdown('location', 'Location', location, locationList,
+              _buildDropdown('Place', place, placeOptions, _onPlaceChanged),
+              _buildDropdown('Location', location, locationList,
                   _onLocationChanged),
-              _buildDropdown('locationid', 'Location ID', locationid,
+              _buildDropdown('Location ID', locationid,
                   locationidList, _onLocationIdChanged),
-              _buildDropdown('drawer', 'Drawer/Shelf', drawer, drawerList,
+              _buildDropdown('Drawer/Shelf', drawer, drawerList,
                   _onDrawerChanged),
               const SizedBox(height: 20),
               FormBuilderTextField(
