@@ -31,6 +31,13 @@ class DetailPage extends StatefulWidget {
 
 class _DetailPageState extends State<DetailPage> {
   final kExpandedHeight = 200.0;
+  late Sample _currentSample;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentSample = widget.sample;
+  }
 
   void _launchURL() async => await canLaunchUrl(Uri.parse(
           '$SERVER_IP/sampletracking_test/sample_select.php?id=$id&room=$dropdownValue'))
@@ -41,7 +48,7 @@ class _DetailPageState extends State<DetailPage> {
       : throw 'could not launch  $SERVER_IP/sampletracking_test/sample_select.php?id=$id&room=$dropdownValue';
   String dropdownValue = 'E131'; //initialize this
 
-  get id => widget.sample.sampleId?.replaceAll(RegExp(r'^0+(?=.)'), '');
+  get id => _currentSample.sampleId?.replaceAll(RegExp(r'^0+(?=.)'), '');
   bool dialVisible = true;
 
 // made a seperate page to accommodate cases _launchURL doesnt work universally per OS.
@@ -64,14 +71,20 @@ class _DetailPageState extends State<DetailPage> {
         SpeedDialChild(
           child: const Icon(Icons.edit, color: Colors.white),
           backgroundColor: Colors.deepOrange,
-          onTap: () {
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => EditPage(
-                    sample: widget.sample,
-                  ),
-                ));
+          onTap: () async {
+            final updatedSample = await Navigator.push<Sample>(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EditPage(
+                  sample: _currentSample,
+                ),
+              ),
+            );
+            if (updatedSample != null) {
+              setState(() {
+                _currentSample = updatedSample;
+              });
+            }
           },
           label: 'Edit',
           labelStyle: const TextStyle(fontWeight: FontWeight.w500),
@@ -80,14 +93,20 @@ class _DetailPageState extends State<DetailPage> {
         SpeedDialChild(
           child: const Icon(Icons.train, color: Colors.white),
           backgroundColor: Colors.green,
-          onTap: () {
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => MovePage(
-                    sample: widget.sample,
-                  ),
-                ));
+          onTap: () async {
+            final updatedSample = await Navigator.push<Sample>(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MovePage(
+                  sample: _currentSample,
+                ),
+              ),
+            );
+            if (updatedSample != null) {
+              setState(() {
+                _currentSample = updatedSample;
+              });
+            }
           },
           label: 'Quick Edit',
           labelStyle: const TextStyle(fontWeight: FontWeight.w500),
@@ -101,7 +120,7 @@ class _DetailPageState extends State<DetailPage> {
                 context,
                 MaterialPageRoute(
                   builder: (context) => ClonePage(
-                    sample: widget.sample,
+                    sample: _currentSample,
                   ),
                 ));
           },
@@ -120,12 +139,13 @@ class _DetailPageState extends State<DetailPage> {
   Widget build(BuildContext context) {
     // Prepare hazard text separately for clarity and styling.
     final List<String> hazardStrings = [
-      if (widget.sample.haz1 != null) widget.sample.haz1!,
-      if (widget.sample.haz2 != null) widget.sample.haz2!,
-      if (widget.sample.haz3 != null) widget.sample.haz3!,
-      if (widget.sample.haz4 != null) widget.sample.haz4!,
+      if (_currentSample.haz1 != null) _currentSample.haz1!,
+      if (_currentSample.haz2 != null) _currentSample.haz2!,
+      if (_currentSample.haz3 != null) _currentSample.haz3!,
+      if (_currentSample.haz4 != null) _currentSample.haz4!,
     ];
-    final String hazardText = hazardStrings.isNotEmpty ? 'Hazards: ${hazardStrings.join(', ')}' : '';
+    final String hazardText =
+        hazardStrings.isNotEmpty ? 'Hazards: ${hazardStrings.join(', ')}' : '';
 
     return Scaffold(
       body: CustomScrollView(slivers: <Widget>[
@@ -139,11 +159,11 @@ class _DetailPageState extends State<DetailPage> {
           ),
           expandedHeight: kExpandedHeight,
           flexibleSpace: FlexibleSpaceBar(
-             background: Stack(
+            background: Stack(
               fit: StackFit.expand,
               children: [
                 CachedNetworkImage(
-                  imageUrl: widget.sample.imageURL.toString(),
+                  imageUrl: _currentSample.imageURL.toString(),
                   placeholder: (context, url) =>
                       const CircularProgressIndicator(),
                   errorWidget: (context, url, error) => Image.asset(
@@ -173,17 +193,26 @@ class _DetailPageState extends State<DetailPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                        Text(
-                        'Chem: ${(widget.sample.chemical.toString())}',
-                        style: const TextStyle(color: Colors.white, fontSize: 16.0, shadows: [Shadow(blurRadius: 2.0)]),
-                      ),
-                       Text(
-                        'ID: ${int.parse(widget.sample.sampleId.toString())}',
-                        style: const TextStyle(color: Colors.white, fontSize: 10.0, shadows: [Shadow(blurRadius: 2.0)]),
+                      Text(
+                        'Chem: ${(_currentSample.chemical.toString())}',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16.0,
+                            shadows: [Shadow(blurRadius: 2.0)]),
                       ),
                       Text(
-                         'Name: ${(widget.sample.sampleName.toString())}', 
-                        style: const TextStyle(color: Colors.white, fontSize: 12.0, shadows: [Shadow(blurRadius: 2.0)]),
+                        'ID: ${int.parse(_currentSample.sampleId.toString())}',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10.0,
+                            shadows: [Shadow(blurRadius: 2.0)]),
+                      ),
+                      Text(
+                        'Name: ${(_currentSample.sampleName.toString())}',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12.0,
+                            shadows: [Shadow(blurRadius: 2.0)]),
                       ),
                       if (hazardText.isNotEmpty)
                         Padding(
@@ -191,11 +220,10 @@ class _DetailPageState extends State<DetailPage> {
                           child: Text(
                             hazardText,
                             style: const TextStyle(
-                              color: Colors.red,
-                              fontSize: 12.0,
-                              fontWeight: FontWeight.bold,
-                              shadows: [Shadow(blurRadius: 2.0)]
-                            ),
+                                color: Colors.red,
+                                fontSize: 12.0,
+                                fontWeight: FontWeight.bold,
+                                shadows: [Shadow(blurRadius: 2.0)]),
                           ),
                         ),
                     ],
@@ -214,7 +242,8 @@ class _DetailPageState extends State<DetailPage> {
               title: const Text(
                 'Owner:',
               ),
-              subtitle: Text('${widget.sample.owner} (${widget.sample.username})'),
+              subtitle:
+                  Text('${_currentSample.owner} (${_currentSample.username})'),
             ),
             ListTile(
               leading: const ExcludeSemantics(
@@ -223,7 +252,7 @@ class _DetailPageState extends State<DetailPage> {
               title: const Text(
                 'External User:',
               ),
-              subtitle: Text(widget.sample.externalUser.toString()),
+              subtitle: Text(_currentSample.externalUser.toString()),
             ),
             ListTile(
               leading: const ExcludeSemantics(
@@ -232,7 +261,7 @@ class _DetailPageState extends State<DetailPage> {
               title: const Text(
                 'Added on:',
               ),
-              subtitle: Text(widget.sample.added.toString().substring(0, 10)),
+              subtitle: Text(_currentSample.added.toString().substring(0, 10)),
             ),
             ListTile(
               leading: const ExcludeSemantics(
@@ -241,7 +270,7 @@ class _DetailPageState extends State<DetailPage> {
               title: const Text(
                 'Located:',
               ),
-              subtitle: Text(widget.sample.locationString.toString()),
+              subtitle: Text(_currentSample.locationString.toString()),
             ),
             ListTile(
               leading: const ExcludeSemantics(
@@ -250,7 +279,7 @@ class _DetailPageState extends State<DetailPage> {
               title: const Text(
                 'In cell:',
               ),
-              subtitle: Text(widget.sample.cellbarcode.toString()),
+              subtitle: Text(_currentSample.cellbarcode.toString()),
             ),
             ListTile(
               leading: const ExcludeSemantics(
@@ -259,11 +288,11 @@ class _DetailPageState extends State<DetailPage> {
               title: const Text(
                 'Mass:',
               ),
-              subtitle: Text(widget.sample.quantity.toString() +
+              subtitle: Text(_currentSample.quantity.toString() +
                   " " +
-                  widget.sample.unit.toString() +
+                  _currentSample.unit.toString() +
                   ' (' +
-                  widget.sample.form.toString() +
+                  _currentSample.form.toString() +
                   ')'),
             ),
             ListTile(
@@ -273,7 +302,7 @@ class _DetailPageState extends State<DetailPage> {
               title: const Text(
                 'Notes:',
               ),
-              subtitle: Text(widget.sample.extraNotes.toString()),
+              subtitle: Text(_currentSample.extraNotes.toString()),
             ),
             //make a row to put dropdown and print button that will lead to munter's link
             Row(
