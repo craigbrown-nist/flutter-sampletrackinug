@@ -17,6 +17,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../features/auth/auth_repository.dart';
 import '../features/samples/sample_providers.dart';
+import '../features/users/user_providers.dart';
 import '../models/Sample.dart';
 import '../providers.dart';
 import 'Toast.dart';
@@ -567,12 +568,12 @@ class _EditContentState extends ConsumerState<EditContent> {
       return;
     }
 
-    // This is a new sample object that we build from the form.
-    final Sample sampleToSubmit = _buildSampleFromForm();
-
     showDialog(context: context, builder: (context) => const Center(child: CircularProgressIndicator()), barrierDismissible: false);
 
     try {
+      // This is a new sample object that we build from the form.
+      final Sample sampleToSubmit = await _buildSampleFromForm();
+
       // The old API uses the same endpoint for new and updated samples.
       // For a new sample, the ID is empty, and the backend assigns one.
       final responseData = await ref.read(apiClientProvider).updateSample(jwt, sample: sampleToSubmit);
@@ -612,9 +613,20 @@ class _EditContentState extends ConsumerState<EditContent> {
     }
   }
 
-  Sample _buildSampleFromForm() {
+  Future<Sample> _buildSampleFromForm() async {
     final values = _fbKey.currentState!.value;
     final originalSample = widget.sample;
+
+    // Get current user. This is used to set the username for auditing
+    // and to set a default owner if one isn't present.
+    final currentUser = await ref.read(currentUserProvider.future);
+    final currentUsername = currentUser?.username;
+
+    // Preserve original owner, but if it's null/empty, set it to the current user.
+    String? finalOwner = originalSample.owner;
+    if (finalOwner == null || finalOwner.isEmpty) {
+      finalOwner = currentUsername;
+    }
 
     // Construct the new location string from the form values
     final newLocationString =
@@ -626,8 +638,8 @@ class _EditContentState extends ConsumerState<EditContent> {
       sampleId: widget.status == 'edit' ? originalSample.sampleId : null,
       sampleName: values['sample_name'],
       chemical: values['chemical'],
-      owner: values['owner'], // This needs a dropdown or user picker in a full implementation
-      username: values['username'],
+      owner: finalOwner,
+      username: currentUsername, // Always set the username to the person doing the edit
       cellbarcode: values['cellbarcode'],
       sampenvbarcode: values['sampenvbarcode'],
       unit: values['units'],
