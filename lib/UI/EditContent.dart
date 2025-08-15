@@ -727,59 +727,59 @@ class _EditContentState extends ConsumerState<EditContent> {
               FormBuilderTextField(
                   name: "chemical",
                   decoration:
-                      const InputDecoration(labelText: "Chemical Name")),
+                      const InputDecoration(labelText: "Chemical Name (for OSHE)", prefixIcon: Icon(MdiIcons.vote))),
               FormBuilderTextField(
                   name: "sample_name",
-                  decoration: const InputDecoration(labelText: "Sample Name")),
+                  decoration: const InputDecoration(labelText: "Sample Name (Your identifier)", prefixIcon: Icon(MdiIcons.voteOutline))),
               FormBuilderTextField(
                   name: "external_user",
                   decoration:
-                      const InputDecoration(labelText: "External User")),
+                      const InputDecoration(labelText: "External User", prefixIcon: Icon(Icons.child_friendly))),
               FormBuilderDateTimePicker(
                 name: "added",
                 inputType: InputType.date,
                 format: DateFormat("yyyy-MM-dd"),
-                decoration: const InputDecoration(labelText: "Received on"),
+                decoration: const InputDecoration(labelText: "Received on", prefixIcon: Icon(Icons.calendar_today)),
               ),
               FormBuilderTextField(
                 name: "quantity",
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: "Mass"),
+                decoration: const InputDecoration(labelText: "Mass", prefixIcon: Icon(Icons.fitness_center)),
               ),
               FormBuilderDropdown(
                   name: 'form',
-                  decoration: const InputDecoration(labelText: "Sample Form"),
+                  decoration: const InputDecoration(labelText: "Sample Form", prefixIcon: Icon(MdiIcons.diamond)),
                   items: allForms
                       .map((f) => DropdownMenuItem(value: f, child: Text(f)))
                       .toList()),
               FormBuilderDropdown(
                   name: 'units',
-                  decoration: const InputDecoration(labelText: "Mass Units"),
+                  decoration: const InputDecoration(labelText: "Mass Units", prefixIcon: Icon(MdiIcons.scaleBalance)),
                   items: allUnits
                       .map((u) => DropdownMenuItem(value: u, child: Text(u)))
                       .toList()),
               FormBuilderDropdown(
                   name: 'Haz1',
-                  decoration: const InputDecoration(labelText: "Hazard 1"),
+                  decoration: const InputDecoration(labelText: "Hazard 1", prefixIcon: Icon(MdiIcons.skullCrossbones)),
                   items: allHazards
                       .map((h) => DropdownMenuItem(value: h, child: Text(h)))
                       .toList()),
               FormBuilderDropdown(
                   name: 'Haz2',
-                  decoration: const InputDecoration(labelText: "Hazard 2"),
+                  decoration: const InputDecoration(labelText: "Hazard 2", prefixIcon: Icon(MdiIcons.skullCrossbones)),
                   items: allHazards
                       .map((h) => DropdownMenuItem(value: h, child: Text(h)))
                       .toList()),
               FormBuilderDropdown(
                   name: 'Haz3',
-                  decoration: const InputDecoration(labelText: "Hazard 3"),
+                  decoration: const InputDecoration(labelText: "Hazard 3", prefixIcon: Icon(MdiIcons.skullCrossbones)),
                   items: allHazards
                       .map((h) => DropdownMenuItem(value: h, child: Text(h)))
                       .toList()),
               FormBuilderDropdown(
                   name: 'Haz4',
-                  decoration: const InputDecoration(labelText: "Hazard 4"),
+                  decoration: const InputDecoration(labelText: "Hazard 4", prefixIcon: Icon(MdiIcons.skullCrossbones)),
                   items: allHazards
                       .map((h) => DropdownMenuItem(value: h, child: Text(h)))
                       .toList()),
@@ -796,11 +796,12 @@ class _EditContentState extends ConsumerState<EditContent> {
               const SizedBox(height: 20),
               FormBuilderTextField(
                 name: "extra_notes",
-                decoration: const InputDecoration(labelText: "Extra Notes"),
+                decoration: const InputDecoration(labelText: "Extra Notes", prefixIcon: Icon(Icons.format_list_bulleted)),
               ),
               FormBuilderSwitch(
                 name: 'archived',
                 title: const Text('Archive this sample?'),
+                decoration: const InputDecoration(prefixIcon: Icon(MdiIcons.trashCan)),
               ),
               const SizedBox(height: 20),
               _resizedImageBytes != null
