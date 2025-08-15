@@ -620,7 +620,7 @@ class _EditContentState extends ConsumerState<EditContent> {
     // Get current user. This is used to set the username for auditing
     // and to set a default owner if one isn't present.
     final currentUser = await ref.read(currentUserProvider.future);
-    final currentUsername = currentUser?.username;
+    final currentUsername = currentUser?.name;
 
     // Preserve original owner, but if it's null/empty, set it to the current user.
     String? finalOwner = originalSample.owner;
