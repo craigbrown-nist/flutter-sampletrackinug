@@ -596,10 +596,11 @@ class _EditContentState extends ConsumerState<EditContent> {
       ref.invalidate(samplesToEmptyProvider);
 
       Navigator.of(context).pop(); // Pop loading indicator
-      toast(context, "Sample saved successfully!", Colors.green);
       if (widget.status == 'edit') {
+        toast(context, "Sample saved successfully!", Colors.green);
         Navigator.of(context).pop(sampleToSubmit); // Pop and return for edits
       } else {
+        toast(context, "Sample saved successfully!", Colors.green);
         Navigator.of(context).pop(); // Just pop for clones
       }
 
@@ -715,10 +716,10 @@ class _EditContentState extends ConsumerState<EditContent> {
             'Haz4': widget.sample.haz4,
             'units': widget.sample.unit ?? 'g',
             'form': widget.sample.form ?? 'Powder',
-            'place': widget.sample.place,
-            'location': widget.sample.location,
-            'locationid': widget.sample.locationid,
-            'drawer': widget.sample.drawer,
+            'place': place,
+            'location': location,
+            'locationid': locationid,
+            'drawer': drawer,
           },
           child: Column(
             children: [
@@ -784,8 +785,7 @@ class _EditContentState extends ConsumerState<EditContent> {
               const SizedBox(height: 20),
               const Text("Location",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              _buildDropdown(
-                  'place', 'Place', place, placeOptions, _onPlaceChanged),
+              _buildDropdown('place', 'Place', place, placeOptions, _onPlaceChanged),
               _buildDropdown('location', 'Location', location, locationList,
                   _onLocationChanged),
               _buildDropdown('locationid', 'Location ID', locationid,

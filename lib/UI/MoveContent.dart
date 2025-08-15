@@ -355,10 +355,10 @@ class _MoveContentState extends ConsumerState<MoveContent> {
           key: _fbKey,
           child: Column(
             children: [
-              _buildDropdown('Place', place, placeOptions, _onPlaceChanged),
-              _buildDropdown('Location', location, locationList, _onLocationChanged),
-              _buildDropdown('Location ID', locationid, locationidList, _onLocationIdChanged),
-              _buildDropdown('Drawer/Shelf', drawer, drawerList, _onDrawerChanged),
+              _buildDropdown('place', 'Place', place, placeOptions, _onPlaceChanged),
+              _buildDropdown('location', 'Location', location, locationList, _onLocationChanged),
+              _buildDropdown('locationid', 'Location ID', locationid, locationidList, _onLocationIdChanged),
+              _buildDropdown('drawer', 'Drawer/Shelf', drawer, drawerList, _onDrawerChanged),
               const SizedBox(height: 30),
               ElevatedButton(
                 onPressed: _submitMove,
