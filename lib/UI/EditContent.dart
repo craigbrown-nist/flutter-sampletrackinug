@@ -54,6 +54,9 @@ class _EditContentState extends ConsumerState<EditContent> {
   List<String> locationidList = [];
   List<String> drawerList = [];
 
+  // Owner Dropdown State
+  String? selectedOwner;
+
   // Windows Camera State
   List<CameraDescription> _cameras = <CameraDescription>[];
   int _cameraId = -1;
@@ -65,6 +68,7 @@ class _EditContentState extends ConsumerState<EditContent> {
       widget.sample.sampleId = '';
     }
     super.initState();
+    selectedOwner = widget.sample.owner;
     _initializeDropdowns();
     if (kIsWeb || Platform.isWindows) {
       _fetchCameras();
@@ -617,13 +621,16 @@ class _EditContentState extends ConsumerState<EditContent> {
     final values = _fbKey.currentState!.value;
     final originalSample = widget.sample;
 
-    // Get current user. This is used to set the username for auditing
-    // and to set a default owner if one isn't present.
+    // Get current user. This is used to set the username for auditing.
     final currentUser = await ref.read(currentUserProvider.future);
     final currentUsername = currentUser?.name;
 
-    // Preserve original owner, but if it's null/empty, set it to the current user.
-    String? finalOwner = originalSample.owner;
+    // The owner is now handled by the `selectedOwner` state variable,
+    // which is updated by the admin-only dropdown.
+    String? finalOwner = selectedOwner;
+
+    // If, for some reason, the owner is still null (e.g. non-admin on a new sample),
+    // default it to the current user.
     if (finalOwner == null || finalOwner.isEmpty) {
       finalOwner = currentUsername;
     }
@@ -638,7 +645,7 @@ class _EditContentState extends ConsumerState<EditContent> {
       sampleId: widget.status == 'edit' ? originalSample.sampleId : null,
       sampleName: values['sample_name'],
       chemical: values['chemical'],
-      owner: finalOwner,
+      owner: finalOwner, // Use the state variable
       username: currentUsername, // Always set the username to the person doing the edit
       cellbarcode: values['cellbarcode'],
       sampenvbarcode: values['sampenvbarcode'],
@@ -705,6 +712,9 @@ class _EditContentState extends ConsumerState<EditContent> {
     final allHazards =
         ref.watch(hazardsProvider).value?.map((e) => e.name!).toList() ?? [];
 
+    final allUsersAsync = ref.watch(allUsersProvider);
+    final currentUserAsync = ref.watch(currentUserProvider);
+
     return Scaffold(
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -738,6 +748,61 @@ class _EditContentState extends ConsumerState<EditContent> {
               FormBuilderTextField(
                   name: "sample_name",
                   decoration: InputDecoration(labelText: "Sample Name (Your identifier)", prefixIcon: Icon(MdiIcons.voteOutline))),
+
+              // --- Admin-only Owner Dropdown ---
+              if (currentUserAsync.value?.manager == '1')
+                allUsersAsync.when(
+                  loading: () => const Padding(padding: EdgeInsets.all(8.0), child: Center(child: CircularProgressIndicator())),
+                  error: (err, stack) => Text('Error: $err'),
+                  data: (users) {
+                    final nameList = users.map((u) => u.name!).where((name) => name.isNotEmpty).toList();
+                    // Ensure the currently selected owner is in the list, otherwise add it.
+                    if (selectedOwner != null && !nameList.contains(selectedOwner)) {
+                      nameList.insert(0, selectedOwner!);
+                    }
+                    return Container(
+                      child: Row(
+                        children: <Widget>[
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(0, 0, 20, 0),
+                            child: Icon(
+                              MdiIcons.human,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          Flexible(
+                            child: DropdownButton<String>(
+                              value: selectedOwner,
+                              isExpanded: true,
+                              icon: const Icon(Icons.arrow_drop_down),
+                              iconSize: 24,
+                              elevation: 16,
+                              style: TextStyle(
+                                color: Colors.grey[700],
+                              ),
+                              underline: Container(
+                                height: 2,
+                              ),
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  selectedOwner = newValue;
+                                });
+                              },
+                              items: nameList
+                                  .map<DropdownMenuItem<String>>((value) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+
               FormBuilderTextField(
                   name: "external_user",
                   decoration:
