@@ -513,6 +513,25 @@ class _EditContentState extends ConsumerState<EditContent> {
     return file;
   }
 
+  Widget _buildDropdown(String hint, String? value, List<String> items,
+      ValueChanged<String?> onChanged) {
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: DropdownButtonFormField<String>(
+        value: items.contains(value) ? value : null,
+        isExpanded: true,
+        hint: Text(hint),
+        items: items
+            .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+            .toList(),
+        onChanged: onChanged,
+        decoration: const InputDecoration(border: OutlineInputBorder()),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // This is a simplified but functional version of the original massive form.
@@ -522,7 +541,7 @@ class _EditContentState extends ConsumerState<EditContent> {
     final allUnits =
         ref.watch(unitsProvider).value?.map((e) => e.name!).toList() ?? [];
     final allHazards =
-        ref.watch(hazardsProvider).value?.map((e) => e.hazard!).toList() ?? [];
+        ref.watch(hazardsProvider).value?.map((e) => e.name!).toList() ?? [];
 
     return Scaffold(
       body: SingleChildScrollView(
@@ -610,15 +629,17 @@ class _EditContentState extends ConsumerState<EditContent> {
                   items: allHazards
                       .map((h) => DropdownMenuItem(value: h, child: Text(h)))
                       .toList()),
-
               const SizedBox(height: 20),
-              const Text("Location", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text("Location",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               _buildDropdown('Place', place, placeOptions, _onPlaceChanged),
-              _buildDropdown('Location', location, locationList, _onLocationChanged),
-              _buildDropdown('Location ID', locationid, locationidList, _onLocationIdChanged),
-              _buildDropdown('Drawer/Shelf', drawer, drawerList, _onDrawerChanged),
+              _buildDropdown(
+                  'Location', location, locationList, _onLocationChanged),
+              _buildDropdown('Location ID', locationid, locationidList,
+                  _onLocationIdChanged),
+              _buildDropdown(
+                  'Drawer/Shelf', drawer, drawerList, _onDrawerChanged),
               const SizedBox(height: 20),
-
               FormBuilderTextField(
                 name: "extra_notes",
                 decoration: const InputDecoration(labelText: "Extra Notes"),
