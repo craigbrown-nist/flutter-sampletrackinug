@@ -213,8 +213,111 @@ class _EditContentState extends ConsumerState<EditContent> {
 
       // Reset children and cascade the update.
       location = locationList.isNotEmpty ? locationList.first : null;
-      // Manually trigger the next dropdown's update logic.
-      _onLocationChanged(location);
+
+      // Full logic for location -> locationid
+      if (location == 'BT1') {
+        locationidList = bt1locid;
+      } else if (location == 'BT2') {
+        locationidList = bt2locid;
+      } else if (location == 'BT4') {
+        locationidList = bt4locid;
+      } else if (location == 'BT5') {
+        locationidList = bt5locid;
+      } else if (location == 'BT7') {
+        locationidList = bt7locid;
+      } else if (location == 'BT8') {
+        locationidList = bt8locid;
+      } else if (location == 'MACS') {
+        locationidList = macslocid;
+      } else if (location == 'East') {
+        locationidList = guideEASTlocid;
+      } else if (location == 'North') {
+        locationidList = guideNORTHlocid;
+      } else if (location == 'SPINS') {
+        locationidList = guideSPINSlocid;
+      } else if (location == 'Polar') {
+        locationidList = guidePOLARlocid;
+      } else if (location == 'A115') {
+        locationidList = a115locid;
+      } else if (location == 'A117') {
+        locationidList = a117locid;
+      } else if (location == 'A127') {
+        locationidList = a127locid;
+      } else if (location == 'A132') {
+        locationidList = a132locid;
+      } else if (location == 'B147') {
+        locationidList = b147locid;
+      } else if (location == 'B142') {
+        locationidList = b142locid;
+      } else if (location == 'E131') {
+        locationidList = e131locid;
+      } else if (location == 'E133') {
+        locationidList = e133locid;
+      } else if (location == 'E132') {
+        locationidList = e132locid;
+      } else if (location == 'E134') {
+        locationidList = e134locid;
+      } else if (location == 'E135') {
+        locationidList = e135locid;
+      } else if (location == 'E136') {
+        locationidList = e136locid;
+      } else if (location == 'E137') {
+        locationidList = e137locid;
+      } else if (location == 'E138') {
+        locationidList = e138locid;
+      } else if (location == 'HP_Clear') {
+        locationidList = hplocid;
+      } else if (location == 'Shipped back') {
+        locationidList = shiplocid;
+      } else if (location == 'Waste') {
+        locationidList = [""];
+      } else if (place == 'GuideHall') {
+        locationidList = guideINSTlocid;
+      } else {
+        locationidList = [];
+      }
+
+      locationid = locationidList.isNotEmpty ? locationidList.first : null;
+
+      // Full logic for locationid -> drawer
+      if (locationid == 'Black Cab' ||
+          locationid == 'Beige Cab' ||
+          locationid == 'Grey Cab') {
+        drawerList = cabinetdrawer;
+      } else if (locationid == 'Cream Cab' || locationid == 'Cabinet') {
+        drawerList = otherdrawer;
+      } else if (locationid == 'Bank 2' ||
+          locationid == 'Bank 13' ||
+          locationid == 'Bank 14' ||
+          locationid == 'Bank 15' ||
+          locationid == 'Bank 16a' ||
+          locationid == 'Bank 16' ||
+          locationid == 'Bank 18' ||
+          locationid == 'Bank 19' ||
+          locationid == 'Bank 17' ||
+          locationid == 'Bank 4' ||
+          locationid == 'Bank 7' ||
+          locationid == 'Bank 20' ||
+          locationid == 'Bank 21' ||
+          locationid == 'Bank 22' ||
+          locationid == 'Bank 23' ||
+          locationid == 'Bank 24' ||
+          locationid == 'Bank 25' ||
+          locationid == 'Bank 26') {
+        drawerList = bankdrawer;
+      } else if (locationid == 'Freezer') {
+        drawerList = drawer5;
+      } else if (locationid == 'Argon box' ||
+          locationid == 'Freezer4-Left' ||
+          locationid == 'Freezer4-Right') {
+        drawerList = drawer4;
+      } else if (locationid == 'Fridge-Left' || locationid == 'Fridge-Right') {
+        drawerList = drawer6;
+      } else {
+        drawerList = [];
+      }
+
+      drawer = drawerList.isNotEmpty ? drawerList.first : null;
     });
   }
 
@@ -286,7 +389,46 @@ class _EditContentState extends ConsumerState<EditContent> {
       }
 
       locationid = locationidList.isNotEmpty ? locationidList.first : null;
-      _onLocationIdChanged(locationid);
+
+      // Full logic for locationid -> drawer
+      if (locationid == 'Black Cab' ||
+          locationid == 'Beige Cab' ||
+          locationid == 'Grey Cab') {
+        drawerList = cabinetdrawer;
+      } else if (locationid == 'Cream Cab' || locationid == 'Cabinet') {
+        drawerList = otherdrawer;
+      } else if (locationid == 'Bank 2' ||
+          locationid == 'Bank 13' ||
+          locationid == 'Bank 14' ||
+          locationid == 'Bank 15' ||
+          locationid == 'Bank 16a' ||
+          locationid == 'Bank 16' ||
+          locationid == 'Bank 18' ||
+          locationid == 'Bank 19' ||
+          locationid == 'Bank 17' ||
+          locationid == 'Bank 4' ||
+          locationid == 'Bank 7' ||
+          locationid == 'Bank 20' ||
+          locationid == 'Bank 21' ||
+          locationid == 'Bank 22' ||
+          locationid == 'Bank 23' ||
+          locationid == 'Bank 24' ||
+          locationid == 'Bank 25' ||
+          locationid == 'Bank 26') {
+        drawerList = bankdrawer;
+      } else if (locationid == 'Freezer') {
+        drawerList = drawer5;
+      } else if (locationid == 'Argon box' ||
+          locationid == 'Freezer4-Left' ||
+          locationid == 'Freezer4-Right') {
+        drawerList = drawer4;
+      } else if (locationid == 'Fridge-Left' || locationid == 'Fridge-Right') {
+        drawerList = drawer6;
+      } else {
+        drawerList = [];
+      }
+
+      drawer = drawerList.isNotEmpty ? drawerList.first : null;
     });
   }
 
@@ -434,6 +576,8 @@ class _EditContentState extends ConsumerState<EditContent> {
       // For a new sample, the ID is empty, and the backend assigns one.
       final responseData = await ref.read(apiClientProvider).updateSample(jwt, sample: sampleToSubmit);
 
+      if (!mounted) return;
+
       // The response for an update/create contains the sample_id.
       final returnedId = responseData?['sample_id'];
 
@@ -460,6 +604,7 @@ class _EditContentState extends ConsumerState<EditContent> {
       }
 
     } catch (e) {
+      if (!mounted) return;
       Navigator.of(context).pop(); // Pop loading indicator
       toast(context, "An error occurred: $e", Colors.red);
     }

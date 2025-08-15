@@ -331,6 +331,8 @@ class _MoveContentState extends ConsumerState<MoveContent> {
     try {
       await ref.read(apiClientProvider).updateSample(jwt, sample: sampleToUpdate);
 
+      if (!mounted) return;
+
       ref.invalidate(userSamplesProvider);
       ref.invalidate(allSamplesProvider);
 
@@ -338,6 +340,7 @@ class _MoveContentState extends ConsumerState<MoveContent> {
       Navigator.of(context).pop(sampleToUpdate);
 
     } catch (e) {
+      if (!mounted) return;
       toast(context, "Error moving sample: $e", Colors.red);
     }
   }
