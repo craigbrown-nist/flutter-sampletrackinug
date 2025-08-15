@@ -711,9 +711,9 @@ class _EditContentState extends ConsumerState<EditContent> {
         ref.watch(unitsProvider).value?.map((e) => e.name!).toList() ?? [];
     final allHazards =
         ref.watch(hazardsProvider).value?.map((e) => e.name!).toList() ?? [];
-
     final allUsersAsync = ref.watch(allUsersProvider);
     final currentUserAsync = ref.watch(currentUserProvider);
+
 
     return Scaffold(
       body: SingleChildScrollView(
@@ -748,61 +748,6 @@ class _EditContentState extends ConsumerState<EditContent> {
               FormBuilderTextField(
                   name: "sample_name",
                   decoration: InputDecoration(labelText: "Sample Name (Your identifier)", prefixIcon: Icon(MdiIcons.voteOutline))),
-
-              // --- Admin-only Owner Dropdown ---
-              if (currentUserAsync.value?.manager == '1')
-                allUsersAsync.when(
-                  loading: () => const Padding(padding: EdgeInsets.all(8.0), child: Center(child: CircularProgressIndicator())),
-                  error: (err, stack) => Text('Error: $err'),
-                  data: (users) {
-                    final nameList = users.map((u) => u.name!).where((name) => name.isNotEmpty).toList();
-                    // Ensure the currently selected owner is in the list, otherwise add it.
-                    if (selectedOwner != null && !nameList.contains(selectedOwner)) {
-                      nameList.insert(0, selectedOwner!);
-                    }
-                    return Container(
-                      child: Row(
-                        children: <Widget>[
-                          const Padding(
-                            padding: EdgeInsets.fromLTRB(0, 0, 20, 0),
-                            child: Icon(
-                              MdiIcons.human,
-                              color: Colors.grey,
-                            ),
-                          ),
-                          Flexible(
-                            child: DropdownButton<String>(
-                              value: selectedOwner,
-                              isExpanded: true,
-                              icon: const Icon(Icons.arrow_drop_down),
-                              iconSize: 24,
-                              elevation: 16,
-                              style: TextStyle(
-                                color: Colors.grey[700],
-                              ),
-                              underline: Container(
-                                height: 2,
-                              ),
-                              onChanged: (String? newValue) {
-                                setState(() {
-                                  selectedOwner = newValue;
-                                });
-                              },
-                              items: nameList
-                                  .map<DropdownMenuItem<String>>((value) {
-                                return DropdownMenuItem<String>(
-                                  value: value,
-                                  child: Text(value),
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-
               FormBuilderTextField(
                   name: "external_user",
                   decoration:
@@ -870,6 +815,62 @@ class _EditContentState extends ConsumerState<EditContent> {
                 name: "extra_notes",
                 decoration: InputDecoration(labelText: "Extra Notes", prefixIcon: Icon(Icons.format_list_bulleted)),
               ),
+
+ // --- Admin-only Owner Dropdown ---
+              if (currentUserAsync.value?.manager == '1')
+                allUsersAsync.when(
+                  loading: () => const Padding(padding: EdgeInsets.all(8.0), child: Center(child: CircularProgressIndicator())),
+                  error: (err, stack) => Text('Error: $err'),
+                  data: (users) {
+                    final nameList = users.map((u) => u.name!).where((name) => name.isNotEmpty).toList();
+                    // Ensure the currently selected owner is in the list, otherwise add it.
+                    if (selectedOwner != null && !nameList.contains(selectedOwner)) {
+                      nameList.insert(0, selectedOwner!);
+                    }
+                    return Container(
+                      child: Row(
+                        children: <Widget>[
+                           Padding(
+                            padding: const EdgeInsets.fromLTRB(0, 0, 20, 0),
+                            child: Icon(
+                              MdiIcons.human,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          Flexible(
+                            child: DropdownButton<String>(
+                              value: selectedOwner,
+                              isExpanded: true,
+                              icon: const Icon(Icons.arrow_drop_down),
+                              iconSize: 24,
+                              elevation: 16,
+                              style: TextStyle(
+                                color: Colors.grey[700],
+                              ),
+                              underline: Container(
+                                height: 2,
+                              ),
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  selectedOwner = newValue;
+                                });
+                              },
+                              items: nameList
+                                  .map<DropdownMenuItem<String>>((value) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+
+
               FormBuilderSwitch(
                 name: 'archived',
                 title: const Text('Archive this sample?'),
