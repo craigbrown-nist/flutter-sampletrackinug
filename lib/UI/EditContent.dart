@@ -68,7 +68,8 @@ class _EditContentState extends ConsumerState<EditContent> {
       widget.sample.sampleId = '';
     }
     super.initState();
-    selectedOwner = widget.sample.owner;
+    // The dropdown works with names, so initialize with the sample's username field.
+    selectedOwner = widget.sample.username;
     _initializeDropdowns();
     if (kIsWeb || Platform.isWindows) {
       _fetchCameras();
@@ -619,20 +620,35 @@ class _EditContentState extends ConsumerState<EditContent> {
 
   Future<Sample> _buildSampleFromForm() async {
     final values = _fbKey.currentState!.value;
-    final originalSample = widget.sample;
+    final allUsers = await ref.read(allUsersProvider.future);
 
-    // Get current user. This is used to set the username for auditing.
-    final currentUser = await ref.read(currentUserProvider.future);
-    final currentUsername = currentUser?.name;
+    String? finalOwnerEmail;
+    String? finalUsername;
 
-    // The owner is now handled by the `selectedOwner` state variable,
-    // which is updated by the admin-only dropdown.
-    String? finalOwner = selectedOwner;
+    // `selectedOwner` holds the NAME of the user from the dropdown.
+    if (selectedOwner != null && selectedOwner!.isNotEmpty) {
+      final selectedUser = allUsers.firstWhere(
+        (u) => u.name == selectedOwner,
+        orElse: () => null,
+      );
+      if (selectedUser != null) {
+        finalOwnerEmail = selectedUser.email;
+        finalUsername = selectedUser.name;
+      }
+    }
 
-    // If, for some reason, the owner is still null (e.g. non-admin on a new sample),
-    // default it to the current user.
-    if (finalOwner == null || finalOwner.isEmpty) {
-      finalOwner = currentUsername;
+    // Fallback if no owner was selected or found.
+    // Preserve the original owner/username.
+    if (finalOwnerEmail == null || finalUsername == null) {
+      finalOwnerEmail = widget.sample.owner;
+      finalUsername = widget.sample.username;
+    }
+
+    // Final fallback to the current user if the sample is brand new and has no owner.
+    if (finalOwnerEmail == null || finalOwnerEmail.isEmpty) {
+        final currentUser = await ref.read(currentUserProvider.future);
+        finalOwnerEmail = currentUser?.email;
+        finalUsername = currentUser?.name;
     }
 
     // Construct the new location string from the local state variables
@@ -641,12 +657,12 @@ class _EditContentState extends ConsumerState<EditContent> {
 
     // Create a new sample object from the form data, preserving original data where needed.
     return Sample(
-      id: widget.status == 'edit' ? originalSample.id : null,
-      sampleId: widget.status == 'edit' ? originalSample.sampleId : null,
+      id: widget.status == 'edit' ? widget.sample.id : null,
+      sampleId: widget.status == 'edit' ? widget.sample.sampleId : null,
       sampleName: values['sample_name'],
       chemical: values['chemical'],
-      owner: finalOwner, // Use the state variable
-      username: currentUsername, // Always set the username to the person doing the edit
+      owner: finalOwnerEmail,   // This is the user's email
+      username: finalUsername, // This is the user's name
       cellbarcode: values['cellbarcode'],
       sampenvbarcode: values['sampenvbarcode'],
       unit: values['units'],
