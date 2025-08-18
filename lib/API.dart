@@ -260,7 +260,14 @@ class ApiClient {
     try {
       final streamedResponse = await _client.send(request);
       final response = await http.Response.fromStream(streamedResponse);
-      return _handleResponse(response, (json) => json['image_url'] as String?);
+      return _handleResponse(response, (json) {
+        String? imageUrl = json['image_url'] as String?;
+        if (imageUrl != null && !imageUrl.startsWith('http')) {
+          // Assuming the returned path is relative to the server root
+          imageUrl = '$SERVER_IP/sampletracking_test/$imageUrl';
+        }
+        return imageUrl;
+      });
     } on SocketException catch (e) {
       throw NetworkException(e.message);
     }
