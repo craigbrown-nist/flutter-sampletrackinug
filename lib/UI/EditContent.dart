@@ -722,12 +722,9 @@ class _EditContentState extends ConsumerState<EditContent> {
   Widget build(BuildContext context) {
     // This is a simplified but functional version of the original massive form.
     // It is still very large and could be broken into smaller components.
-    final allForms =
-        ref.watch(formsProvider).value?.map((e) => e.name!).toList() ?? [];
-    final allUnits =
-        ref.watch(unitsProvider).value?.map((e) => e.name!).toList() ?? [];
-    final allHazards =
-        ref.watch(hazardsProvider).value?.map((e) => e.name!).toList() ?? [];
+    final allForms = ref.watch(formsProvider).value?.map((e) => e.name ?? '').where((name) => name.isNotEmpty).toList() ?? [];
+    final allUnits = ref.watch(unitsProvider).value?.map((e) => e.name ?? '').where((name) => name.isNotEmpty).toList() ?? [];
+    final allHazards = ref.watch(hazardsProvider).value?.map((e) => e.name ?? '').where((name) => name.isNotEmpty).toList() ?? [];
 
             // Safer dropdown initialization: only use an initial value if it's in the list.
 
