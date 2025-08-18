@@ -575,27 +575,20 @@ class _EditContentState extends ConsumerState<EditContent> {
 
     showDialog(context: context, builder: (context) => const Center(child: CircularProgressIndicator()), barrierDismissible: false);
 
+    File? tempFile;
     try {
       // This is a new sample object that we build from the form.
       final Sample sampleToSubmit = await _buildSampleFromForm();
 
-      // The old API uses the same endpoint for new and updated samples.
-      // For a new sample, the ID is empty, and the backend assigns one.
-      final responseData = await ref.read(apiClientProvider).updateSample(jwt, sample: sampleToSubmit);
+      // If an image was changed, create a temporary file to upload.
+      if (_changedImage && _resizedImageBytes != null) {
+        tempFile = await _createTempFileFromBytes(_resizedImageBytes!);
+      }
+
+      // Use the new unified updateSample method.
+      final responseData = await ref.read(apiClientProvider).updateSample(jwt, sample: sampleToSubmit, imageFile: tempFile);
 
       if (!mounted) return;
-
-      // The response for an update/create contains the sample_id.
-      final returnedId = responseData?['sample_id'];
-
-      if (_changedImage && _resizedImageBytes != null) {
-        final sampleIdForImage = widget.status == 'edit' ? sampleToSubmit.id : returnedId;
-        if (sampleIdForImage != null) {
-          final tempFile = await _createTempFileFromBytes(_resizedImageBytes!);
-          await ref.read(apiClientProvider).updateImage(jwt, sampleID: sampleIdForImage, file: tempFile);
-          await tempFile.delete();
-        }
-      }
 
       // Invalidate providers to refresh lists
       ref.invalidate(userSamplesProvider);
@@ -603,36 +596,22 @@ class _EditContentState extends ConsumerState<EditContent> {
       ref.invalidate(samplesToEmptyProvider);
 
       Navigator.of(context).pop(); // Pop loading indicator
-      if (widget.status == 'edit') {
-        toast(context, "Sample saved successfully!", Colors.green);
-        Navigator.of(context).pop(sampleToSubmit); // Pop and return for edits
-      } else {
-        // This is a clone. The server has created a new sample.
-        // We need to navigate to the new sample's detail page.
-        final newId = responseData?['id']?.toString();
-        final newSampleId = responseData?['sample_id']?.toString();
 
-        if (newId != null && newSampleId != null) {
-          final newSample = sampleToSubmit.copyWith(id: newId, sampleId: newSampleId);
-          toast(context, "Sample cloned successfully!", Colors.green);
-          // Replace the current EditContent page with the new DetailPage
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => DetailPage(sample: newSample),
-            ),
-          );
-        } else {
-          // Fallback if we don't get a valid new ID, just pop.
-          toast(context, "Sample cloned, but could not navigate to new sample.", Colors.orange);
-          Navigator.of(context).pop();
-        }
-      }
+      // For both edits and clones, we now want to return the updated/new sample.
+      // The calling page (DetailPage) will handle the navigation.
+      final newId = responseData?['id']?.toString();
+      final newSampleId = responseData?['sample_id']?.toString();
+      final finalSample = sampleToSubmit.copyWith(id: newId, sampleId: newSampleId);
+
+      Navigator.of(context).pop(finalSample);
 
     } catch (e) {
       if (!mounted) return;
       Navigator.of(context).pop(); // Pop loading indicator
       toast(context, "An error occurred: $e", Colors.red);
+    } finally {
+      // Ensure the temporary file is always deleted.
+      await tempFile?.delete();
     }
   }
 

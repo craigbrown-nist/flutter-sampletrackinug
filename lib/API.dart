@@ -181,9 +181,58 @@ class ApiClient {
     });
   }
 
-  Future<Map<String, dynamic>?> updateSample(String jwt, {required Sample sample}) async {
-    // The original API seems to use POST for updates, which is unconventional.
-    return await _post('samples', jwt: jwt, body: sample.toJson(), fromJson: (json) => json as Map<String, dynamic>?);
+  Future<Map<String, dynamic>?> updateSample(String jwt, {required Sample sample, File? imageFile}) async {
+    // The original API uses POST for both create and update.
+    // If an image is included, we must use a multipart request.
+    // Otherwise, we can send a standard JSON body.
+    final uri = Uri.parse('$_baseUrl/samples');
+
+    if (imageFile == null) {
+      // No image, use existing JSON post logic.
+      return await _post('samples', jwt: jwt, body: sample.toJson(), fromJson: (json) => json as Map<String, dynamic>?);
+    } else {
+      // Image is present, build and send a multipart request.
+      final request = http.MultipartRequest('POST', uri);
+      request.headers['Authorization'] = 'Bearer $jwt';
+
+      // Add sample data as form fields.
+      sample.toJson().forEach((key, value) {
+        if (value != null) {
+          request.fields[key] = value.toString();
+        }
+      });
+
+      // Add the image file to the request.
+      final mimeTypeData = lookupMimeType(imageFile.path)?.split('/');
+      final fileStream = http.ByteStream(imageFile.openRead());
+      final length = await imageFile.length();
+      final multipartFile = http.MultipartFile(
+        'image', // The field name for the image file.
+        fileStream,
+        length,
+        filename: imageFile.path.split('/').last,
+        contentType: mimeTypeData != null ? MediaType(mimeTypeData[0], mimeTypeData[1]) : null,
+      );
+      request.files.add(multipartFile);
+
+      try {
+        final streamedResponse = await _client.send(request);
+        final response = await http.Response.fromStream(streamedResponse);
+        // Use a modified handler because a 400 with multipart might have a non-JSON body.
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return json.decode(response.body) as Map<String, dynamic>?;
+        } else if (response.statusCode == 401) {
+          throw UnauthorizedException();
+        } else {
+          // For multipart errors, the body might not be JSON.
+          throw ApiException(
+              'Request failed with status: ${response.statusCode}. Body: ${response.body}',
+              response.statusCode);
+        }
+      } on SocketException catch (e) {
+        throw NetworkException(e.message);
+      }
+    }
   }
 
   // --- Forms, Units, Hazards ---
@@ -234,35 +283,4 @@ class ApiClient {
     await _delete('cells/$id', jwt: jwt);
   }
 
-  // --- Image Upload ---
-
-  Future<void> updateImage(String jwt, {required String sampleID, required File file}) async {
-    final uri = Uri.parse('$_baseUrl/image');
-    final request = http.MultipartRequest('POST', uri);
-
-    final mimeTypeData = lookupMimeType(file.path)?.split('/');
-    final fileStream = http.ByteStream(file.openRead());
-    final length = await file.length();
-
-    request.headers['Authorization'] = 'Bearer $jwt';
-    request.fields['sample_id'] = sampleID;
-
-    final multipartFile = http.MultipartFile(
-      'image',
-      fileStream,
-      length,
-      filename: file.path.split('/').last,
-      contentType: mimeTypeData != null ? MediaType(mimeTypeData[0], mimeTypeData[1]) : null,
-    );
-
-    request.files.add(multipartFile);
-
-    try {
-      final streamedResponse = await _client.send(request);
-      final response = await http.Response.fromStream(streamedResponse);
-      _handleResponse(response, (json) => null);
-    } on SocketException catch (e) {
-      throw NetworkException(e.message);
-    }
-  }
 }
