@@ -147,12 +147,12 @@ class _EditContentState extends ConsumerState<EditContent> {
       return;
     }
 
-    // This is a new sample object that we build from the form.
-    final Sample sampleToSubmit = _buildSampleFromForm();
-
     showDialog(context: context, builder: (context) => const Center(child: CircularProgressIndicator()), barrierDismissible: false);
 
     try {
+      // This is a new sample object that we build from the form.
+      Sample sampleToSubmit = _buildSampleFromForm();
+
       // The old API uses the same endpoint for new and updated samples.
       // For a new sample, the ID is empty, and the backend assigns one.
       final responseData = await ref.read(apiClientProvider).updateSample(jwt, sample: sampleToSubmit);
@@ -164,8 +164,11 @@ class _EditContentState extends ConsumerState<EditContent> {
         final sampleIdForImage = widget.status == 'edit' ? sampleToSubmit.sampleId : returnedId;
         if (sampleIdForImage != null) {
           final tempFile = await _createTempFileFromBytes(_resizedImageBytes!);
-          await ref.read(apiClientProvider).updateImage(jwt, sampleID: sampleIdForImage, file: tempFile);
+          final newImageUrl = await ref.read(apiClientProvider).updateImage(jwt, sampleID: sampleIdForImage, file: tempFile);
           await tempFile.delete();
+          if (newImageUrl != null) {
+            sampleToSubmit = sampleToSubmit.copyWith(imageURL: newImageUrl);
+          }
         }
       }
 
@@ -176,7 +179,9 @@ class _EditContentState extends ConsumerState<EditContent> {
 
       Navigator.of(context).pop(); // Pop loading indicator
       toast(context, "Sample saved successfully!", Colors.green);
-      Navigator.of(context).pop(); // Pop this page
+
+      // Pop this page and return the potentially updated sample
+      Navigator.of(context).pop(sampleToSubmit);
 
     } catch (e) {
       Navigator.of(context).pop(); // Pop loading indicator

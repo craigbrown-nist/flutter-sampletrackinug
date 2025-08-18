@@ -236,7 +236,7 @@ class ApiClient {
 
   // --- Image Upload ---
 
-  Future<void> updateImage(String jwt, {required String sampleID, required File file}) async {
+  Future<String?> updateImage(String jwt, {required String sampleID, required File file}) async {
     final uri = Uri.parse('$_baseUrl/image');
     final request = http.MultipartRequest('POST', uri);
 
@@ -260,7 +260,7 @@ class ApiClient {
     try {
       final streamedResponse = await _client.send(request);
       final response = await http.Response.fromStream(streamedResponse);
-      _handleResponse(response, (json) => null);
+      return _handleResponse(response, (json) => json['image_url'] as String?);
     } on SocketException catch (e) {
       throw NetworkException(e.message);
     }
