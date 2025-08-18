@@ -161,7 +161,6 @@ class _EditContentState extends ConsumerState<EditContent> {
       final returnedId = responseData?['sample_id'];
 
       if (_changedImage && _resizedImageBytes != null) {
-        // The API expects the human-readable sampleId, not the database ID.
         final sampleIdForImage = widget.status == 'edit' ? sampleToSubmit.sampleId : returnedId;
         if (sampleIdForImage != null) {
           final tempFile = await _createTempFileFromBytes(_resizedImageBytes!);
