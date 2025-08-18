@@ -727,6 +727,15 @@ class _EditContentState extends ConsumerState<EditContent> {
         ref.watch(unitsProvider).value?.map((e) => e.name!).toList() ?? [];
     final allHazards =
         ref.watch(hazardsProvider).value?.map((e) => e.name!).toList() ?? [];
+
+    // Safer dropdown initialization: only use an initial value if it's in the list.
+    final validInitialForm = (widget.sample.form != null && allForms.contains(widget.sample.form))
+        ? widget.sample.form
+        : null;
+    final validInitialUnit = (widget.sample.unit != null && allUnits.contains(widget.sample.unit))
+        ? widget.sample.unit
+        : null;
+
     final allUsersAsync = ref.watch(allUsersProvider);
     final currentUserAsync = ref.watch(currentUserProvider);
 
@@ -752,8 +761,8 @@ class _EditContentState extends ConsumerState<EditContent> {
             'Haz2': widget.sample.haz2,
             'Haz3': widget.sample.haz3,
             'Haz4': widget.sample.haz4,
-            'units': widget.sample.unit ?? 'g',
-            'form': widget.sample.form ?? 'Powder',
+            'units': validInitialUnit,
+            'form': validInitialForm,
           },
           child: Column(
             children: [
