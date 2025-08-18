@@ -167,7 +167,9 @@ class _EditContentState extends ConsumerState<EditContent> {
           final newImageUrl = await ref.read(apiClientProvider).updateImage(jwt, sampleID: sampleIdForImage, file: tempFile);
           await tempFile.delete();
           if (newImageUrl != null) {
-            sampleToSubmit = sampleToSubmit.copyWith(imageURL: newImageUrl);
+            // Append a timestamp as a cache-busting query parameter.
+            final cacheBustedUrl = '$newImageUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+            sampleToSubmit = sampleToSubmit.copyWith(imageURL: cacheBustedUrl);
           }
         }
       }
