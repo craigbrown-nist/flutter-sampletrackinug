@@ -607,8 +607,26 @@ class _EditContentState extends ConsumerState<EditContent> {
         toast(context, "Sample saved successfully!", Colors.green);
         Navigator.of(context).pop(sampleToSubmit); // Pop and return for edits
       } else {
-        toast(context, "Sample saved successfully!", Colors.green);
-        Navigator.of(context).pop(); // Just pop for clones
+        // This is a clone. The server has created a new sample.
+        // We need to navigate to the new sample's detail page.
+        final newId = responseData?['id']?.toString();
+        final newSampleId = responseData?['sample_id']?.toString();
+
+        if (newId != null && newSampleId != null) {
+          final newSample = sampleToSubmit.copyWith(id: newId, sampleId: newSampleId);
+          toast(context, "Sample cloned successfully!", Colors.green);
+          // Replace the current EditContent page with the new DetailPage
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DetailPage(sample: newSample),
+            ),
+          );
+        } else {
+          // Fallback if we don't get a valid new ID, just pop.
+          toast(context, "Sample cloned, but could not navigate to new sample.", Colors.orange);
+          Navigator.of(context).pop();
+        }
       }
 
     } catch (e) {
@@ -658,8 +676,8 @@ class _EditContentState extends ConsumerState<EditContent> {
 
     // Create a new sample object from the form data, preserving original data where needed.
     return Sample(
-      id: widget.status == 'edit' ? widget.sample.id : null,
-      sampleId: widget.status == 'edit' ? widget.sample.sampleId : null,
+      id: widget.status == 'edit' ? widget.sample.id : "",
+      sampleId: widget.status == 'edit' ? widget.sample.sampleId : "",
       sampleName: values['sample_name'],
       chemical: values['chemical'],
       owner: finalOwnerEmail,
