@@ -629,7 +629,7 @@ class _EditContentState extends ConsumerState<EditContent> {
     if (selectedOwner != null && selectedOwner!.isNotEmpty) {
       final selectedUser = allUsers.firstWhere(
         (u) => u.name == selectedOwner,
-        orElse: () => null,
+        orElse: () => null, // Use orElse to prevent exception if not found
       );
       if (selectedUser != null) {
         finalOwnerEmail = selectedUser.email;
@@ -637,14 +637,15 @@ class _EditContentState extends ConsumerState<EditContent> {
       }
     }
 
-    // Fallback if no owner was selected or found.
-    // Preserve the original owner/username.
+    // Fallback if no owner was selected via dropdown (e.g. non-admin) or if the selected user wasn't found.
+    // Preserve the original owner/username from the sample.
     if (finalOwnerEmail == null || finalUsername == null) {
       finalOwnerEmail = widget.sample.owner;
       finalUsername = widget.sample.username;
     }
 
-    // Final fallback to the current user if the sample is brand new and has no owner.
+    // Final fallback to the current user if the sample still has no owner details.
+    // This would typically be for a brand new sample being created by a non-admin.
     if (finalOwnerEmail == null || finalOwnerEmail.isEmpty) {
         final currentUser = await ref.read(currentUserProvider.future);
         finalOwnerEmail = currentUser?.email;
@@ -661,13 +662,13 @@ class _EditContentState extends ConsumerState<EditContent> {
       sampleId: widget.status == 'edit' ? widget.sample.sampleId : null,
       sampleName: values['sample_name'],
       chemical: values['chemical'],
-      owner: finalOwnerEmail,   // This is the user's email
-      username: finalUsername, // This is the user's name
+      owner: finalOwnerEmail,
+      username: finalUsername,
       cellbarcode: values['cellbarcode'],
       sampenvbarcode: values['sampenvbarcode'],
       unit: values['units'],
-      parent: originalSample.parent ?? "0",
-      archived: values['archived'] ? "1" : "0",
+      parent: widget.sample.parent ?? "0",
+      archived: values['archived'] ? "1" : "0", // Corrected logic
       added: (values['added'] as DateTime).toIso8601String(),
       externalUser: values['external_user'],
       quantity: values['quantity'],
@@ -728,13 +729,28 @@ class _EditContentState extends ConsumerState<EditContent> {
     final allHazards =
         ref.watch(hazardsProvider).value?.map((e) => e.name!).toList() ?? [];
 
-    // Safer dropdown initialization: only use an initial value if it's in the list.
+            // Safer dropdown initialization: only use an initial value if it's in the list.
+
+
     final validInitialForm = (widget.sample.form != null && allForms.contains(widget.sample.form))
         ? widget.sample.form
         : null;
     final validInitialUnit = (widget.sample.unit != null && allUnits.contains(widget.sample.unit))
         ? widget.sample.unit
         : null;
+    final validInitiaHaz1 = (widget.sample.haz1 != null && allHazards.contains(widget.sample.haz1))
+        ? widget.sample.haz1
+        : null;
+    final validInitiaHaz2 = (widget.sample.haz2 != null && allHazards.contains(widget.sample.haz2))
+        ? widget.sample.haz2
+        : null;
+    final validInitiaHaz3 = (widget.sample.haz3 != null && allHazards.contains(widget.sample.haz3))
+        ? widget.sample.haz3
+        : null;
+    final validInitiaHaz4 = (widget.sample.haz4 != null && allHazards.contains(widget.sample.haz4))
+        ? widget.sample.haz4
+        : null;
+
 
     final allUsersAsync = ref.watch(allUsersProvider);
     final currentUserAsync = ref.watch(currentUserProvider);
@@ -757,10 +773,10 @@ class _EditContentState extends ConsumerState<EditContent> {
             'sampenvbarcode': widget.sample.sampenvbarcode,
             'extra_notes': widget.sample.extraNotes,
             'archived': widget.sample.archived == '1',
-            'Haz1': widget.sample.haz1,
-            'Haz2': widget.sample.haz2,
-            'Haz3': widget.sample.haz3,
-            'Haz4': widget.sample.haz4,
+            'Haz1': validInitiaHaz1,
+            'Haz2': validInitiaHaz2,
+            'Haz3': validInitiaHaz3,
+            'Haz4': validInitiaHaz4,
             'units': validInitialUnit,
             'form': validInitialForm,
           },
@@ -838,7 +854,7 @@ class _EditContentState extends ConsumerState<EditContent> {
               const SizedBox(height: 20),
               FormBuilderTextField(
                 name: "extra_notes",
-                decoration: InputDecoration(labelText: "Extra Notes", prefixIcon: Icon(Icons.format_list_bulleted)),
+                decoration: const InputDecoration(labelText: "Extra Notes", prefixIcon: Icon(Icons.format_list_bulleted)),
               ),
 
  // --- Admin-only Owner Dropdown ---
@@ -847,41 +863,40 @@ class _EditContentState extends ConsumerState<EditContent> {
                   loading: () => const Padding(padding: EdgeInsets.all(8.0), child: Center(child: CircularProgressIndicator())),
                   error: (err, stack) => Text('Error: $err'),
                   data: (users) {
-                    final nameList = users.map((u) => u.name!).where((name) => name.isNotEmpty).toList();
+                    final nameList = users.map((u) => u.name ?? '').where((name) => name.isNotEmpty).toList();
                     // Ensure the currently selected owner is in the list, otherwise add it.
                     if (selectedOwner != null && !nameList.contains(selectedOwner)) {
                       nameList.insert(0, selectedOwner!);
                     }
-                    return Container(
-                      child: Row(
-                        children: <Widget>[
-                           Padding(
-                            padding: const EdgeInsets.fromLTRB(0, 0, 20, 0),
-                            child: Icon(
-                              MdiIcons.human,
-                              color: Colors.grey,
-                            ),
+                    return Row(
+                      children: <Widget>[
+                         Padding(
+                          padding: const EdgeInsets.fromLTRB(0, 0, 20, 0),
+                          child: Icon(
+                            MdiIcons.human,
+                            color: Colors.grey,
                           ),
-                          Flexible(
-                            child: DropdownButton<String>(
-                              value: selectedOwner,
-                              isExpanded: true,
-                              icon: const Icon(Icons.arrow_drop_down),
-                              iconSize: 24,
-                              elevation: 16,
-                              style: TextStyle(
-                                color: Colors.grey[700],
-                              ),
-                              underline: Container(
-                                height: 2,
-                              ),
-                              onChanged: (String? newValue) {
-                                setState(() {
-                                  selectedOwner = newValue;
-                                });
-                              },
-                              items: nameList
-                                  .map<DropdownMenuItem<String>>((value) {
+                        ),
+                        Flexible(
+                          child: DropdownButton<String>(
+                            value: selectedOwner,
+                            isExpanded: true,
+                            icon: const Icon(Icons.arrow_drop_down),
+                            iconSize: 24,
+                            elevation: 16,
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                            ),
+                            underline: Container(
+                              height: 2,
+                            ),
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                selectedOwner =  newValue;
+                              });
+                            },
+                            items: nameList
+                                .map<DropdownMenuItem<String>>((value) {
                                 return DropdownMenuItem<String>(
                                   value: value,
                                   child: Text(value),
@@ -890,8 +905,7 @@ class _EditContentState extends ConsumerState<EditContent> {
                             ),
                           ),
                         ],
-                      ),
-                    );
+                      );
                   },
                 ),
 
