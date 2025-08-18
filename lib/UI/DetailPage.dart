@@ -117,14 +117,26 @@ class _DetailPageState extends State<DetailPage> {
         SpeedDialChild(
           child: const Icon(Icons.content_copy, color: Colors.white),
           backgroundColor: Colors.blue,
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            final newSample = await Navigator.push<Sample>(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ClonePage(
+                  sample: _currentSample,
+                ),
+              ),
+            );
+            if (newSample != null) {
+              // The clone page returns the new sample.
+              // Replace the entire stack up to the list page with the new detail page.
+              Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => ClonePage(
-                    sample: _currentSample,
-                  ),
-                ));
+                  builder: (context) => DetailPage(sample: newSample),
+                ),
+                (Route<dynamic> route) => route.isFirst, // This pops until the first route in the stack.
+              );
+            }
           },
           labelWidget: Container(
             color: Colors.blue,

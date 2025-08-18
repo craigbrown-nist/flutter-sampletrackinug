@@ -639,35 +639,35 @@ class _EditContentState extends ConsumerState<EditContent> {
   Future<Sample> _buildSampleFromForm() async {
     final values = _fbKey.currentState!.value;
     final allUsers = await ref.read(allUsersProvider.future);
+    final currentUser = await ref.read(currentUserProvider.future);
 
     String? finalOwnerEmail;
     String? finalUsername;
 
-    // `selectedOwner` holds the NAME of the user from the dropdown.
-    if (selectedOwner != null && selectedOwner!.isNotEmpty) {
-      final selectedUser = allUsers.firstWhere(
-        (u) => u.name == selectedOwner,
-        orElse: () => null, // Use orElse to prevent exception if not found
-      );
-      if (selectedUser != null) {
-        finalOwnerEmail = selectedUser.email;
-        finalUsername = selectedUser.name;
+    if (widget.status == 'clone') {
+      // For clones, always assign the current user as the owner.
+      finalOwnerEmail = currentUser?.email;
+      finalUsername = currentUser?.name;
+    } else {
+      // For edits, use the dropdown selection.
+      // `selectedOwner` holds the NAME of the user from the dropdown.
+      if (selectedOwner != null && selectedOwner!.isNotEmpty) {
+        final selectedUser = allUsers.firstWhere(
+          (u) => u.name == selectedOwner,
+          orElse: () => null, // Use orElse to prevent exception if not found
+        );
+        if (selectedUser != null) {
+          finalOwnerEmail = selectedUser.email;
+          finalUsername = selectedUser.name;
+        }
       }
-    }
 
-    // Fallback if no owner was selected via dropdown (e.g. non-admin) or if the selected user wasn't found.
-    // Preserve the original owner/username from the sample.
-    if (finalOwnerEmail == null || finalUsername == null) {
-      finalOwnerEmail = widget.sample.owner;
-      finalUsername = widget.sample.username;
-    }
-
-    // Final fallback to the current user if the sample still has no owner details.
-    // This would typically be for a brand new sample being created by a non-admin.
-    if (finalOwnerEmail == null || finalOwnerEmail.isEmpty) {
-        final currentUser = await ref.read(currentUserProvider.future);
-        finalOwnerEmail = currentUser?.email;
-        finalUsername = currentUser?.name;
+      // Fallback if no owner was selected via dropdown or if the selected user wasn't found.
+      // Preserve the original owner/username from the sample.
+      if (finalOwnerEmail == null || finalUsername == null) {
+        finalOwnerEmail = widget.sample.owner;
+        finalUsername = widget.sample.username;
+      }
     }
 
     // Construct the new location string from the local state variables
