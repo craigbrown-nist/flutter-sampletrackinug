@@ -17,15 +17,27 @@ class AppDrawer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUser = ref.watch(currentUserProvider);
-    final bool isAdmin = currentUser.value?.manager == '1';
-    final String userName = currentUser.value?.name ?? 'Loading...';
 
+    return currentUser.when(
+      loading: () => _buildDrawerWidget(context, ref, "Loading...", false),
+      error: (error, stackTrace) {
+        // In a real app, you might want to log the error.
+        return _buildDrawerWidget(context, ref, "Error", false);
+      },
+      data: (user) {
+        final bool isAdmin = user?.manager == '1';
+        final String userName = user?.name ?? 'User';
+        return _buildDrawerWidget(context, ref, userName, isAdmin);
+      },
+    );
+  }
+
+  Widget _buildDrawerWidget(BuildContext context, WidgetRef ref, String userName, bool isAdmin) {
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
         children: <Widget>[
           _buildDrawerHeader(userName),
-
           ListTile(
             leading: const Icon(Icons.local_library),
             title: const Text('My samples'),
@@ -36,10 +48,7 @@ class AppDrawer extends ConsumerWidget {
             title: const Text('Cells'),
             onTap: () => _navigateTo(context, '/cells'),
           ),
-
-          // Platform-specific and Admin-specific items
           ..._buildPlatformAndAdminItems(context, isAdmin),
-
           ListTile(
             leading: const Icon(Icons.question_answer),
             title: const Text('About'),
@@ -51,8 +60,6 @@ class AppDrawer extends ConsumerWidget {
             title: const Text('Logout'),
             onTap: () async {
               await ref.read(authRepositoryProvider).logout();
-              // Navigate to the initial route, which will be handled by AuthChecker/GoRouter.
-              // ignore: use_build_context_synchronously
               context.go('/');
             },
           ),
