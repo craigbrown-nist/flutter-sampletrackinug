@@ -37,15 +37,26 @@ final userEmailProvider = StateProvider<String?>((ref) => null);
 
 /// Provider to get the full User object for the currently logged-in user.
 final currentUserProvider = FutureProvider<User?>((ref) async {
-  final userEmail = ref.watch(userEmailProvider);
-  final allUsers = await ref.watch(allUsersProvider.future);
+  // By watching authStateProvider, this provider will automatically re-run
+  // when the user logs in or out.
+  final authState = ref.watch(authStateProvider);
+  if (authState == null) {
+    return null; // No user logged in, so no current user.
+  }
 
-  if (userEmail == null) return null;
+  final userEmail = ref.watch(userEmailProvider);
+  if (userEmail == null) {
+    return null; // Should not happen if authState is not null, but good practice.
+  }
+
+  // allUsersProvider will be re-fetched if it also depends on authState,
+  // which is a good pattern to ensure data is not stale.
+  final allUsers = await ref.watch(allUsersProvider.future);
 
   try {
     return allUsers.firstWhere((user) => user.email == userEmail);
   } catch (e) {
-    // User not found in the list
+    // User not found in the list, or the list was empty.
     return null;
   }
 });
