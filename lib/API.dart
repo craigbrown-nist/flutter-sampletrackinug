@@ -198,6 +198,46 @@ class ApiClient {
     return await _post('samples', jwt: jwt, body: sample.toJson(), fromJson: (json) => json as Map<String, dynamic>?);
   }
 
+  /// Creates a new sample with an image in a single multipart request.
+  Future<void> createSampleWithImage(String jwt, {required Sample sample, required Uint8List imageBytes}) async {
+    final uri = Uri.parse('$_baseUrl/samples');
+    final request = http.MultipartRequest('POST', uri);
+
+    // Add all the sample data as form fields.
+    final sampleData = sample.toJson();
+    sampleData.forEach((key, value) {
+      if (value != null) {
+        request.fields[key] = value.toString();
+      }
+    });
+
+    // Add the image file to the request.
+    request.files.add(http.MultipartFile.fromBytes(
+      'image', // This is the field name the server expects for the file.
+      imageBytes,
+      filename: 'upload.jpg',
+      contentType: MediaType('image', 'jpeg'),
+    ));
+
+    // Add authorization header.
+    request.headers['Authorization'] = 'Bearer $jwt';
+
+    try {
+      final streamedResponse = await _client.send(request);
+      final response = await http.Response.fromStream(streamedResponse);
+
+      // We don't use _handleResponse here because a successful creation might not return JSON.
+      // We just need to check the status code.
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw ApiException(
+            'Failed to create sample with image. Status: ${response.statusCode}, Body: ${response.body}',
+            response.statusCode);
+      }
+    } on SocketException catch (e) {
+      throw NetworkException(e.message);
+    }
+  }
+
   // --- Forms, Units, Hazards ---
 
   Future<List<FormsOfSample>> getForms(String jwt) async {
