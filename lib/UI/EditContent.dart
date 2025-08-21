@@ -363,6 +363,16 @@ class _EditContentState extends ConsumerState<EditContent> {
 
     try {
       Sample sampleToSubmit = _buildSampleFromForm();
+
+      // For new or cloned samples, set the owner to the current user.
+      if (widget.status == 'new' || widget.status == 'clone') {
+        final currentUser = ref.read(currentUserProvider).value;
+        sampleToSubmit = sampleToSubmit.copyWith(
+          owner: currentUser?.email,
+          username: currentUser?.name,
+        );
+      }
+
       final responseData = await ref.read(apiClientProvider).updateSample(jwt, sample: sampleToSubmit);
       final returnedId = responseData?['sample_id'];
 
