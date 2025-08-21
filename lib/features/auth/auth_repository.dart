@@ -89,7 +89,15 @@ class AuthRepository {
       );
 
       if (response.statusCode == 200) {
-        final jwt = response.body;
+        String jwt;
+        try {
+          // If the server returns a JSON-encoded string (e.g., "...token..."), decode it.
+          jwt = json.decode(response.body);
+        } on FormatException {
+          // Otherwise, assume the server returned the raw token string.
+          jwt = response.body;
+        }
+
         if (jwt.isNotEmpty) {
           // On success, save both JWT and the email used to log in.
           await _saveJwt(jwt);
@@ -97,7 +105,7 @@ class AuthRepository {
           _ref.read(authStateProvider.notifier).state = jwt;
           _ref.read(userEmailProvider.notifier).state = email;
         } else {
-           throw ApiException('Login failed: Server returned an empty response.', response.statusCode);
+          throw ApiException('Login failed: Server returned an empty response.', response.statusCode);
         }
       } else if (response.statusCode == 401) {
         throw UnauthorizedException('Invalid credentials.');
