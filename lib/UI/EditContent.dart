@@ -399,10 +399,12 @@ class _EditContentState extends ConsumerState<EditContent> {
       ref.invalidate(allSamplesProvider);
       ref.invalidate(samplesToEmptyProvider);
 
+      if (!mounted) return;
       Navigator.of(context).pop(); // Pop loading indicator
       toast(context, "Sample saved successfully!", Colors.green);
       Navigator.of(context).pop(sampleToSubmit); // Pop back and return the final sample object
     } catch (e) {
+      if (!mounted) return;
       Navigator.of(context).pop(); // Pop loading indicator
       toast(context, "An error occurred: $e", Colors.red);
     }

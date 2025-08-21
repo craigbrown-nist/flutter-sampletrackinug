@@ -237,6 +237,7 @@ class ListPage extends ConsumerWidget {
 
               await Future.wait(archiveFutures);
 
+              if (!context.mounted) return;
               Navigator.of(context).pop(); // Dismiss loading dialog
               toast(context, "${samplesToArchive.length} sample(s) archived.", Colors.green);
 
@@ -245,6 +246,7 @@ class ListPage extends ConsumerWidget {
               pageController.toggleSelectionMode();
 
             } catch (e) {
+              if (!context.mounted) return;
               Navigator.of(context).pop(); // Dismiss loading dialog
               toast(context, "Error archiving samples: $e", Colors.red);
             }
