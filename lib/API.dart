@@ -93,12 +93,24 @@ class ApiClient {
 
   T _handleResponse<T>(http.Response response, T Function(dynamic json) fromJson) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      final jsonBody = json.decode(response.body);
-      return fromJson(jsonBody);
+      try {
+        final jsonBody = json.decode(response.body);
+        return fromJson(jsonBody);
+      } on FormatException {
+        // Handle cases where the server returns a 200 OK status but with a
+        // plain text error message instead of JSON (which is incorrect behavior).
+        if (response.body.contains('Unauthorized')) {
+          throw UnauthorizedException(
+              'Server returned "Unauthorized" with a success status code.');
+        }
+        // If it's a different format error, it's unexpected.
+        rethrow;
+      }
     } else if (response.statusCode == 401) {
       throw UnauthorizedException();
     } else {
-      throw ApiException('Request failed with status: ${response.statusCode}.', response.statusCode);
+      throw ApiException(
+          'Request failed with status: ${response.statusCode}.', response.statusCode);
     }
   }
 

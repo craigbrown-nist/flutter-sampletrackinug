@@ -6,6 +6,7 @@ import '../../../API.dart';
 import '../../../ListPage.dart';
 import '../../../Login.dart';
 import '../../../models/User.dart';
+import '../../samples/sample_providers.dart';
 import '../auth_repository.dart';
 
 /// This widget acts as a router, deciding which screen to show based on the
@@ -16,21 +17,26 @@ class AuthChecker extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Listen for authentication errors from any provider that depends on currentUserProvider.
-    // This acts as a global error handler for expired JWTs.
-    ref.listen<AsyncValue<User?>>(currentUserProvider, (_, next) {
-      if (next.hasError && next.error is UnauthorizedException) {
-        // Use a post-frame callback to safely trigger logout and navigation
-        // after the current build cycle is complete.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (ModalRoute.of(context)?.isCurrent ?? false) {
-             ref.read(authRepositoryProvider).logout();
-             // The GoRouter setup will see the auth state change and redirect automatically.
-             // A manual context.go('/') might be needed if issues persist.
-          }
-        });
-      }
-    });
+    // Helper function to avoid duplicating the listener logic.
+    void createAuthErrorListener<T>(ProviderListenable<AsyncValue<T>> provider) {
+      ref.listen<AsyncValue<T>>(provider, (_, next) {
+        if (next.hasError && next.error is UnauthorizedException) {
+          // Use a post-frame callback to safely trigger logout and navigation
+          // after the current build cycle is complete.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            // Check if the widget is still in the tree and mounted before acting.
+            if (ModalRoute.of(context)?.isCurrent ?? false) {
+              ref.read(authRepositoryProvider).logout();
+            }
+          });
+        }
+      });
+    }
+
+    // Create listeners for all providers that make authenticated API calls.
+    createAuthErrorListener(currentUserProvider);
+    createAuthErrorListener(userSamplesProvider);
+    createAuthErrorListener(allSamplesProvider);
 
     // Watch the app initialization provider.
     final appInit = ref.watch(appInitProvider);
