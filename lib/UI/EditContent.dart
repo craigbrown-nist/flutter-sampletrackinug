@@ -63,6 +63,7 @@ class _EditContentState extends ConsumerState<EditContent> {
     super.initState();
     if (widget.status == "clone") {
       widget.sample.sampleId = '';
+      widget.sample.imageURL = null;
     }
     _initializeDropdowns();
     if (kIsWeb || Platform.isWindows) {
