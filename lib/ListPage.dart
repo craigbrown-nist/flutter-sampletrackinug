@@ -6,6 +6,8 @@ import 'package:material_design_icons_flutter/material_design_icons_flutter.dart
 import 'UI/DetailPage.dart';
 import 'UI/NewPage.dart';
 import 'UI/adminNavDrawer.dart';
+import 'API.dart';
+import 'UI/Toast.dart';
 import 'features/samples/list_page_state.dart';
 import 'features/samples/sample_providers.dart';
 import 'models/Sample.dart';
@@ -205,8 +207,47 @@ class ListPage extends ConsumerWidget {
         SpeedDialChild(
           child: const Icon(Icons.remove_red_eye, color: Colors.white),
           backgroundColor: Colors.blue,
-          onTap: () {
-            // TODO: Implement 'Archive' logic
+          onTap: () async {
+            final pageController = ref.read(listPageControllerProvider.notifier);
+            final pageState = ref.read(listPageControllerProvider);
+            final selectedIds = pageState.selectedSampleIds;
+            final allSamples = ref.read(userSamplesProvider).value;
+            final apiClient = ref.read(apiClientProvider);
+            final jwt = ref.read(authStateProvider);
+
+            if (selectedIds.isEmpty || allSamples == null || jwt == null) {
+              toast(context, "No samples selected or error loading data.", Colors.orange);
+              return;
+            }
+
+            final samplesToArchive = allSamples.where((s) => selectedIds.contains(s.sampleId)).toList();
+
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => const Center(child: CircularProgressIndicator()),
+            );
+
+            try {
+              final List<Future> archiveFutures = [];
+              for (final sample in samplesToArchive) {
+                final updatedSample = sample.copyWith(archived: '1');
+                archiveFutures.add(apiClient.updateSample(jwt, sample: updatedSample));
+              }
+
+              await Future.wait(archiveFutures);
+
+              Navigator.of(context).pop(); // Dismiss loading dialog
+              toast(context, "${samplesToArchive.length} sample(s) archived.", Colors.green);
+
+              ref.invalidate(userSamplesProvider);
+              pageController.clearSelection();
+              pageController.toggleSelectionMode();
+
+            } catch (e) {
+              Navigator.of(context).pop(); // Dismiss loading dialog
+              toast(context, "Error archiving samples: $e", Colors.red);
+            }
           },
           label: 'Archive',
         ),
