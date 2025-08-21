@@ -82,6 +82,8 @@ class AllPage extends ConsumerWidget {
       itemBuilder: (context, index) {
         final sample = samples[index];
         final isSelected = pageState.selectedSampleIds.contains(sample.sampleId);
+        final isArchived = sample.archived == '1';
+        final textColor = isArchived ? Colors.grey : null; // Use default color if not archived.
 
         return InkWell(
           onTap: () {
@@ -103,11 +105,20 @@ class AllPage extends ConsumerWidget {
             }
           },
           child: Container(
-            color: isSelected ? Colors.blue.withValues(alpha:0.3) : Colors.transparent,
+            color: isSelected ? Colors.blue.withOpacity(0.3) : Colors.transparent,
             child: ListTile(
-              leading: Text(sample.sampleId ?? 'N/A'),
-              title: Text(sample.chemical ?? 'Unknown Chemical'),
-              subtitle: Text(sample.userName ?? 'Unknown User'),
+              leading: Text(
+                sample.sampleId ?? 'N/A',
+                style: TextStyle(color: textColor),
+              ),
+              title: Text(
+                sample.chemical ?? 'Unknown Chemical',
+                style: TextStyle(color: textColor),
+              ),
+              subtitle: Text(
+                sample.userName ?? 'Unknown User',
+                style: TextStyle(color: textColor),
+              ),
               trailing: pageState.isSelectionMode
                   ? Icon(isSelected ? Icons.check_box : Icons.check_box_outline_blank)
                   : const Icon(Icons.keyboard_arrow_right),
