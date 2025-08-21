@@ -427,7 +427,7 @@ class _EditContentState extends ConsumerState<EditContent> {
       archived: values['archived'] ? "1" : "0",
       added: (values['added'] as DateTime).toIso8601String(),
       externalUser: values['external_user'],
-      quantity: values['quantity'],
+      quantity: values['quantity']?.toString(),
       form: values['form'],
       date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
       extraNotes: values['extra_notes'],
