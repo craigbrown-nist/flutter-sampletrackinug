@@ -362,70 +362,46 @@ class _EditContentState extends ConsumerState<EditContent> {
     showDialog(context: context, builder: (context) => const Center(child: CircularProgressIndicator()), barrierDismissible: false);
 
     try {
-      // Determine if we are creating a new sample with an image.
-      final isCreatingWithImage =
-          (widget.status == 'new' || widget.status == 'clone') && _changedImage && _resizedImageBytes != null;
+      Sample sampleToSubmit = _buildSampleFromForm();
 
-      if (isCreatingWithImage) {
-        // --- Path 1: Create sample and image together ---
-        Sample sampleToSubmit = _buildSampleFromForm();
+      // If this is a new or cloned sample, override the owner/username
+      // with the current logged-in user's details.
+      if (widget.status == 'new' || widget.status == 'clone') {
         final currentUser = ref.read(currentUserProvider).value;
         sampleToSubmit = sampleToSubmit.copyWith(
           owner: currentUser?.email,
           username: currentUser?.name,
         );
+      }
 
-        await ref
-            .read(apiClientProvider)
-            .createSampleWithImage(jwt, sample: sampleToSubmit, imageBytes: _resizedImageBytes!);
+      // First, create or update the sample data. This call returns the ID
+      // needed for a potential image upload.
+      final responseData = await ref.read(apiClientProvider).updateSample(jwt, sample: sampleToSubmit);
+      final returnedId = responseData?['sample_id'];
 
-        // Since this endpoint doesn't return the new sample, we can't pop with data.
-        // We just invalidate the lists so they refresh on the previous page.
-        ref.invalidate(userSamplesProvider);
-        ref.invalidate(allSamplesProvider);
-        ref.invalidate(samplesToEmptyProvider);
-
-        Navigator.of(context).pop(); // Pop loading indicator
-        toast(context, "Sample created successfully!", Colors.green);
-        Navigator.of(context).pop(); // Pop back to the previous page
-
-      } else {
-        // --- Path 2: Existing logic (update, or create without image) ---
-        Sample sampleToSubmit = _buildSampleFromForm();
-
-        if (widget.status == 'new' || widget.status == 'clone') {
-          final currentUser = ref.read(currentUserProvider).value;
-          sampleToSubmit = sampleToSubmit.copyWith(
-            owner: currentUser?.email,
-            username: currentUser?.name,
-          );
-        }
-
-        final responseData = await ref.read(apiClientProvider).updateSample(jwt, sample: sampleToSubmit);
-        final returnedId = responseData?['sample_id'];
-
-        if (_changedImage && _resizedImageBytes != null) {
-          // This path is now only for EDITING a sample's image.
-          final sampleIdForImage = widget.status == 'edit' ? sampleToSubmit.sampleId : returnedId;
-          if (sampleIdForImage != null) {
-            final tempFile = await _createTempFileFromBytes(_resizedImageBytes!);
-            final newImageUrl = await ref.read(apiClientProvider).updateImage(jwt, sampleID: sampleIdForImage, file: tempFile);
-            await tempFile.delete();
-            if (newImageUrl != null) {
-              final cacheBustedUrl = '$newImageUrl?t=${DateTime.now().millisecondsSinceEpoch}';
-              sampleToSubmit = sampleToSubmit.copyWith(imageURL: cacheBustedUrl);
-            }
+      // If an image was changed, now upload it using the sample's ID.
+      if (_changedImage && _resizedImageBytes != null) {
+        // For a new sample, use the ID we just got back from the server.
+        final sampleIdForImage = widget.status == 'edit' ? sampleToSubmit.sampleId : returnedId;
+        if (sampleIdForImage != null) {
+          final tempFile = await _createTempFileFromBytes(_resizedImageBytes!);
+          final newImageUrl = await ref.read(apiClientProvider).updateImage(jwt, sampleID: sampleIdForImage, file: tempFile);
+          await tempFile.delete();
+          if (newImageUrl != null) {
+            final cacheBustedUrl = '$newImageUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+            sampleToSubmit = sampleToSubmit.copyWith(imageURL: cacheBustedUrl);
           }
         }
-
-        ref.invalidate(userSamplesProvider);
-        ref.invalidate(allSamplesProvider);
-        ref.invalidate(samplesToEmptyProvider);
-
-        Navigator.of(context).pop(); // Pop loading indicator
-        toast(context, "Sample saved successfully!", Colors.green);
-        Navigator.of(context).pop(sampleToSubmit);
       }
+
+      // Invalidate providers to ensure lists are refreshed.
+      ref.invalidate(userSamplesProvider);
+      ref.invalidate(allSamplesProvider);
+      ref.invalidate(samplesToEmptyProvider);
+
+      Navigator.of(context).pop(); // Pop loading indicator
+      toast(context, "Sample saved successfully!", Colors.green);
+      Navigator.of(context).pop(sampleToSubmit); // Pop back and return the final sample object
     } catch (e) {
       Navigator.of(context).pop(); // Pop loading indicator
       toast(context, "An error occurred: $e", Colors.red);
