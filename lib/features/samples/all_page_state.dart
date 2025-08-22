@@ -3,6 +3,7 @@ import '../../models/Sample.dart';
 import 'sample_providers.dart';
 
 enum SortType { id, chemical }
+enum SortDirection { asc, desc }
 
 // 1. Define the state class
 class AllPageState {
@@ -10,12 +11,14 @@ class AllPageState {
   final bool isSelectionMode;
   final Set<String> selectedSampleIds;
   final SortType sortType;
+  final SortDirection sortDirection;
 
   AllPageState({
     this.searchQuery = '',
     this.isSelectionMode = false,
     this.selectedSampleIds = const {},
     this.sortType = SortType.id,
+    this.sortDirection = SortDirection.desc,
   });
 
   AllPageState copyWith({
@@ -23,12 +26,14 @@ class AllPageState {
     bool? isSelectionMode,
     Set<String>? selectedSampleIds,
     SortType? sortType,
+    SortDirection? sortDirection,
   }) {
     return AllPageState(
       searchQuery: searchQuery ?? this.searchQuery,
       isSelectionMode: isSelectionMode ?? this.isSelectionMode,
       selectedSampleIds: selectedSampleIds ?? this.selectedSampleIds,
       sortType: sortType ?? this.sortType,
+      sortDirection: sortDirection ?? this.sortDirection,
     );
   }
 }
@@ -41,8 +46,15 @@ class AllPageController extends StateNotifier<AllPageState> {
     state = state.copyWith(searchQuery: query);
   }
 
-  void setSort(SortType sortType) {
-    state = state.copyWith(sortType: sortType);
+  void setSort(SortType newSortType) {
+    if (state.sortType == newSortType) {
+      // If same type, toggle direction
+      final newDirection = state.sortDirection == SortDirection.asc ? SortDirection.desc : SortDirection.asc;
+      state = state.copyWith(sortDirection: newDirection);
+    } else {
+      // If new type, set it and default to descending
+      state = state.copyWith(sortType: newSortType, sortDirection: SortDirection.desc);
+    }
   }
 
   void toggleSelectionMode() {
@@ -103,15 +115,14 @@ final filteredAllSamplesProvider = Provider<List<Sample>>((ref) {
 
       // Sorting logic
       filtered.sort((a, b) {
-        switch (sortType) {
-          case SortType.id:
-            // Handle nulls and parse errors gracefully for numeric sort
-            final idA = int.tryParse(a.sampleId ?? '0') ?? 0;
-            final idB = int.tryParse(b.sampleId ?? '0') ?? 0;
-            return idB.compareTo(idA); // Descending
-          case SortType.chemical:
-            return (a.chemical ?? '').compareTo(b.chemical ?? ''); // Ascending
+        int comparison;
+        if (pageState.sortType == SortType.id) {
+          comparison = (int.tryParse(a.sampleId ?? '0') ?? 0)
+              .compareTo(int.tryParse(b.sampleId ?? '0') ?? 0);
+        } else {
+          comparison = (a.chemical ?? '').toLowerCase().compareTo((b.chemical ?? '').toLowerCase());
         }
+        return pageState.sortDirection == SortDirection.asc ? comparison : -comparison;
       });
 
       return filtered;
