@@ -91,8 +91,19 @@ class ListPage extends ConsumerWidget {
       itemBuilder: (context, index) {
         final sample = samples[index];
         final isSelected = pageState.selectedSampleIds.contains(sample.sampleId);
-        final hasHazard = sample.hazards?.isNotEmpty ?? false;
-        final textColor = hasHazard ? Colors.red : null;
+        // Note: isArchived is not currently a property on the samples in this list,
+        // as the backend filters them out. But if that changes, this logic is ready.
+        final isArchived = sample.archived == '1';
+        final hasHazard = sample.haz1 != null || sample.haz2 != null || sample.haz3 != null || sample.haz4 != null;
+
+        Color? textColor;
+        if (hasHazard && isArchived) {
+          textColor = Colors.pink;
+        } else if (hasHazard) {
+          textColor = Colors.red;
+        } else if (isArchived) {
+          textColor = Colors.grey;
+        }
 
         return InkWell(
           onTap: () {

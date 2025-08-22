@@ -83,7 +83,16 @@ class AllPage extends ConsumerWidget {
         final sample = samples[index];
         final isSelected = pageState.selectedSampleIds.contains(sample.sampleId);
         final isArchived = sample.archived == '1';
-        final textColor = isArchived ? Colors.grey : null; // Use default color if not archived.
+        final hasHazard = sample.haz1 != null || sample.haz2 != null || sample.haz3 != null || sample.haz4 != null;
+
+        Color? textColor;
+        if (hasHazard && isArchived) {
+          textColor = Colors.pink;
+        } else if (hasHazard) {
+          textColor = Colors.red;
+        } else if (isArchived) {
+          textColor = Colors.grey;
+        }
 
         return InkWell(
           onTap: () {
