@@ -5,9 +5,14 @@ import 'package:material_design_icons_flutter/material_design_icons_flutter.dart
 
 import '../features/samples/all_page_state.dart';
 import '../features/samples/sample_providers.dart';
+import '../features/auth/auth_repository.dart';
 import '../models/Sample.dart';
+import '../providers.dart';
+import 'API.dart';
 import 'DetailPage.dart';
+import 'MoveDialogContent.dart';
 import 'NewPage.dart';
+import 'Toast.dart';
 import 'adminNavDrawer.dart';
 
 class AllPage extends ConsumerWidget {
@@ -202,8 +207,65 @@ class AllPage extends ConsumerWidget {
         SpeedDialChild(
           child: const Icon(Icons.train, color: Colors.white),
           backgroundColor: Colors.green,
-          onTap: () {
-            // TODO: Implement 'Move' logic
+          onTap: () async {
+            final pageController = ref.read(allPageControllerProvider.notifier);
+            final pageState = ref.read(allPageControllerProvider);
+            final selectedIds = pageState.selectedSampleIds;
+            final allSamples = ref.read(allSamplesProvider).value;
+            final apiClient = ref.read(apiClientProvider);
+            final jwt = ref.read(authStateProvider);
+
+            if (selectedIds.isEmpty || allSamples == null || jwt == null) {
+              toast(context, "No samples selected or error loading data.", Colors.orange);
+              return;
+            }
+
+            final samplesToMove = allSamples.where((s) => selectedIds.contains(s.sampleId)).toList();
+
+            final newLocation = await showDialog<Map<String, String?>>(
+              context: context,
+              builder: (context) => MoveDialogContent(initialSample: samplesToMove.first),
+            );
+
+            if (newLocation == null) return;
+
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => const Center(child: CircularProgressIndicator()),
+            );
+
+            try {
+              final List<Future> moveFutures = [];
+              final locationString = "${newLocation['place'] ?? ''}/${newLocation['location'] ?? ''}/${newLocation['locationid'] ?? ''}/${newLocation['drawer'] ?? ''}";
+
+              for (final sample in samplesToMove) {
+                final updatedSample = sample.copyWith(
+                  place: newLocation['place'],
+                  location: newLocation['location'],
+                  locationid: newLocation['locationid'],
+                  drawer: newLocation['drawer'],
+                  locationString: locationString,
+                );
+                moveFutures.add(apiClient.updateSample(jwt, sample: updatedSample));
+              }
+
+              await Future.wait(moveFutures);
+
+              if (!context.mounted) return;
+              Navigator.of(context).pop();
+              toast(context, "${samplesToMove.length} sample(s) moved.", Colors.green);
+
+              ref.invalidate(userSamplesProvider);
+              ref.invalidate(allSamplesProvider);
+              pageController.clearSelection();
+              pageController.toggleSelectionMode();
+
+            } catch (e) {
+              if (!context.mounted) return;
+              Navigator.of(context).pop();
+              toast(context, "Error moving samples: $e", Colors.red);
+            }
           },
           label: 'Move',
         ),
