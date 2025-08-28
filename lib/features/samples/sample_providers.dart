@@ -13,13 +13,14 @@ import '../auth/auth_repository.dart';
 final userSamplesProvider = FutureProvider<List<Sample>>((ref) async {
   final apiClient = ref.watch(apiClientProvider);
   final jwt = ref.watch(authStateProvider);
-  final userEmail = ref.watch(userEmailProvider);
+  final decodedJwt = ref.watch(decodedJwtProvider);
 
-  // If the user is not logged in (no JWT or no email), return an empty list.
-  // The UI will rebuild automatically when the auth state changes.
-  if (jwt == null || userEmail == null) {
+  // If the user is not logged in, return an empty list.
+  if (jwt == null || decodedJwt == null || !decodedJwt.containsKey('email')) {
     return [];
   }
+
+  final userEmail = decodedJwt['email'] as String;
 
   return apiClient.getUserSamples(jwt, userEmail: userEmail);
 });
