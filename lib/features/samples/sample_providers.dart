@@ -13,10 +13,10 @@ import '../auth/auth_repository.dart';
 final userSamplesProvider = FutureProvider<List<Sample>>((ref) async {
   final apiClient = ref.watch(apiClientProvider);
   final jwt = ref.watch(authStateProvider);
-  final userEmail = ref.watch(userEmailProvider);
+  final decodedJwt = ref.watch(decodedJwtProvider);
+  final userEmail = decodedJwt?['email'] as String?;
 
-  // If the user is not logged in (no JWT or no email), return an empty list.
-  // The UI will rebuild automatically when the auth state changes.
+  // If the user is not logged in (no valid token or no email in token), return an empty list.
   if (jwt == null || userEmail == null) {
     return [];
   }

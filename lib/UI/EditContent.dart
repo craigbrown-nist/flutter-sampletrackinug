@@ -446,6 +446,30 @@ class _EditContentState extends ConsumerState<EditContent> {
     );
   }
 
+  Widget _buildBarcodeField(String name, String label) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: FormBuilderTextField(
+              name: name,
+              decoration: InputDecoration(
+                labelText: label,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            onPressed: () {
+              // TODO: Implement scanner navigation
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<File> _createTempFileFromBytes(Uint8List bytes) async {
     final tempDir = await getTemporaryDirectory();
     final tempPath = '${tempDir.path}/upload.jpg';
@@ -486,7 +510,8 @@ class _EditContentState extends ConsumerState<EditContent> {
             children: [
               FormBuilderTextField(name: "chemical", decoration: const InputDecoration(labelText: "Chemical Name")),
               FormBuilderTextField(name: "sample_name", decoration: const InputDecoration(labelText: "Sample Name")),
-              // ... other fields ...
+              _buildBarcodeField('cellbarcode', 'Cell Barcode'),
+              _buildBarcodeField('sampenvbarcode', 'Sample Env Barcode'),
               FormBuilderDropdown(name: 'form', items: allForms.map((f) => DropdownMenuItem(value: f, child: Text(f))).toList()),
               FormBuilderDropdown(name: 'units', items: allUnits.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList()),
               const SizedBox(height: 20),

@@ -295,6 +295,16 @@ class _DetailPageState extends State<DetailPage> {
               ),
               subtitle: Text(_currentSample.cellbarcode.toString()),
             ),
+            if (_currentSample.sampenvbarcode != null && _currentSample.sampenvbarcode!.isNotEmpty)
+              ListTile(
+                leading: const ExcludeSemantics(
+                  child: Icon(Icons.qr_code_2),
+                ),
+                title: const Text(
+                  'Sample Environment:',
+                ),
+                subtitle: Text(_currentSample.sampenvbarcode.toString()),
+              ),
             ListTile(
               leading: const ExcludeSemantics(
                 child: Icon(Icons.fitness_center),
