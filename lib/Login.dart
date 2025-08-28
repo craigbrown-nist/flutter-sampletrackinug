@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'API.dart';
@@ -79,8 +78,7 @@ class _LoginState extends ConsumerState<Login> {
     // successful login) and navigate to the home screen.
     ref.listen<String?>(authStateProvider, (previous, next) {
       if (next != null) {
-        // Use go_router for navigation to be consistent with the rest of the app.
-        context.go('/myhome');
+        Navigator.pushReplacementNamed(context, '/myhome');
       }
     });
 

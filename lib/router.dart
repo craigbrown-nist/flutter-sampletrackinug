@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+// Global navigator key to allow navigation from outside the widget tree.
+final navigatorKey = GlobalKey<NavigatorState>();
+
 import 'features/auth/auth_repository.dart';
 import 'features/auth/presentation/auth_checker.dart';
 
@@ -26,6 +29,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
 
   return GoRouter(
+    navigatorKey: navigatorKey,
     initialLocation: '/',
     debugLogDiagnostics: true, // Log navigation events to the console
     routes: [

@@ -59,8 +59,8 @@ const guideSPINSlocid = [
   "On Beam",
   "Bank 13",
   "Bank 15",
-  "Bank 16a",
-  "Bank 19",
+  "Bank 16a"
+      "Bank 19",
   "Bank 17",
   ""
 ];

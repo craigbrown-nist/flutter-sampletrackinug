@@ -16,54 +16,56 @@ import '../samples/sample_providers.dart';
 const _jwtKey = 'jwt';
 
 /// Provider for the [AuthRepository].
+/// This is where the business logic for authentication lives.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  // We pass the ref to the repository so it can read other providers.
   return AuthRepository(ref: ref);
 });
 
-/// Provider that exposes the current authentication state (the JWT string).
-final authStateProvider = StateProvider<String?>((ref) => null);
+/// Provider that exposes the current authentication state (the JWT).
+/// UI widgets can listen to this to react to login/logout events.
+final authStateProvider = StateProvider<String?>((ref) {
+  // On startup, we try to get the JWT from storage.
+  return null;
+});
 
-/// Provider that decodes the JWT and exposes its payload as a map.
-/// Returns null if the token is null, invalid, or expired.
+/// Decodes the JWT and provides the payload as a map.
+/// This is the new single source of truth for user information like email.
 final decodedJwtProvider = Provider<Map<String, dynamic>?>((ref) {
   final jwt = ref.watch(authStateProvider);
-  if (jwt == null) return null;
-  try {
-    if (JwtDecoder.isExpired(jwt)) {
-      // Handle expired token, maybe by triggering a logout
+  if (jwt != null) {
+    try {
+      return JwtDecoder.decode(jwt);
+    } catch (e) {
+      // If decoding fails, the token is invalid. Return null.
       return null;
     }
-    return JwtDecoder.decode(jwt);
-  } catch (e) {
-    // Handle error decoding token
-    return null;
   }
+  return null;
 });
 
 /// Provider to get the full User object for the currently logged-in user.
+/// It now derives the email from the decoded JWT.
 final currentUserProvider = FutureProvider<User?>((ref) async {
   final decodedJwt = ref.watch(decodedJwtProvider);
-  if (decodedJwt == null) {
-    return null; // No user logged in or token is invalid/expired.
-  }
-
-  final userEmail = decodedJwt['email'] as String?;
-  if (userEmail == null) {
-    return null; // Email claim missing from token.
-  }
-
-  // This will re-fetch all users when the auth state changes, which is correct.
   final allUsers = await ref.watch(allUsersProvider.future);
+
+  if (decodedJwt == null || !decodedJwt.containsKey('email')) {
+    return null;
+  }
+
+  final userEmail = decodedJwt['email'] as String;
 
   try {
     return allUsers.firstWhere((user) => user.email == userEmail);
   } catch (e) {
-    // User from token not found in the user list.
+    // User not found in the list
     return null;
   }
 });
 
 /// Provider to handle app initialization.
+/// It now loads the entire user session (JWT and email).
 final appInitProvider = FutureProvider<void>((ref) async {
   await ref.read(authRepositoryProvider).loadUserSessionFromStorage();
 });
@@ -76,7 +78,7 @@ class AuthRepository {
 
   Future<SharedPreferences> get _prefs async => await _ref.read(sharedPreferencesProvider.future);
 
-  /// Tries to log in the user and saves the JWT if successful.
+  /// Tries to log in the user and saves the JWT and email if successful.
   Future<void> login(String email, String password) async {
     final uri = Uri.parse('$SERVER_IP/sampletracking_test/login.php');
     try {
@@ -90,22 +92,18 @@ class AuthRepository {
       );
 
       if (response.statusCode == 200) {
-        String jwt;
-        try {
-          jwt = json.decode(response.body);
-        } on FormatException {
-          jwt = response.body;
-        }
-
+        final jwt = response.body;
         if (jwt.isNotEmpty) {
+          // On success, save the JWT. The email is derived from the JWT itself.
           await _saveJwt(jwt);
           _ref.read(authStateProvider.notifier).state = jwt;
         } else {
-          throw ApiException('Login failed: Server returned an empty response.', response.statusCode);
+           throw ApiException('Login failed: Server returned an empty response.', response.statusCode);
         }
       } else if (response.statusCode == 401) {
         throw UnauthorizedException('Invalid credentials.');
-      } else {
+      }
+      else {
         throw ApiException('Login failed', response.statusCode);
       }
     } on SocketException catch (e) {

@@ -93,24 +93,12 @@ class ApiClient {
 
   T _handleResponse<T>(http.Response response, T Function(dynamic json) fromJson) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      try {
-        final jsonBody = json.decode(response.body);
-        return fromJson(jsonBody);
-      } on FormatException {
-        // Handle cases where the server returns a 200 OK status but with a
-        // plain text error message instead of JSON (which is incorrect behavior).
-        if (response.body.contains('Unauthorized')) {
-          throw UnauthorizedException(
-              'Server returned "Unauthorized" with a success status code.');
-        }
-        // If it's a different format error, it's unexpected.
-        rethrow;
-      }
+      final jsonBody = json.decode(response.body);
+      return fromJson(jsonBody);
     } else if (response.statusCode == 401) {
       throw UnauthorizedException();
     } else {
-      throw ApiException(
-          'Request failed with status: ${response.statusCode}.', response.statusCode);
+      throw ApiException('Request failed with status: ${response.statusCode}.', response.statusCode);
     }
   }
 
@@ -248,7 +236,7 @@ class ApiClient {
 
   // --- Image Upload ---
 
-  Future<String?> updateImage(String jwt, {required String sampleID, required File file}) async {
+  Future<void> updateImage(String jwt, {required String sampleID, required File file}) async {
     final uri = Uri.parse('$_baseUrl/image');
     final request = http.MultipartRequest('POST', uri);
 
@@ -272,10 +260,7 @@ class ApiClient {
     try {
       final streamedResponse = await _client.send(request);
       final response = await http.Response.fromStream(streamedResponse);
-      return _handleResponse(response, (json) {
-        // Per user feedback, the key is 'url' and it provides a full, absolute URL.
-        return json['url'] as String?;
-      });
+      _handleResponse(response, (json) => null);
     } on SocketException catch (e) {
       throw NetworkException(e.message);
     }

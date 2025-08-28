@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../API.dart';
 import '../../../ListPage.dart';
 import '../../../Login.dart';
 import '../../../models/User.dart';
+import '../../../router.dart';
 import '../../samples/sample_providers.dart';
 import '../auth_repository.dart';
 
@@ -21,19 +21,16 @@ class AuthChecker extends ConsumerWidget {
     void createAuthErrorListener<T>(ProviderListenable<AsyncValue<T>> provider) {
       ref.listen<AsyncValue<T>>(provider, (_, next) {
         if (next.hasError && next.error is UnauthorizedException) {
-          // Use a post-frame callback to safely trigger logout and navigation
-          // after the current build cycle is complete.
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            // Check if the widget is still in the tree and mounted before acting.
-            if (ModalRoute.of(context)?.isCurrent ?? false) {
-              ref.read(authRepositoryProvider).logout();
-            }
-          });
+          // When an auth error occurs, log the user out and navigate to the login screen.
+          // We use the global navigatorKey to avoid issues with BuildContext.
+          ref.read(authRepositoryProvider).logout();
+          navigatorKey.currentState?.go('/login');
         }
       });
     }
 
-    // Create listeners for all providers that make authenticated API calls.
+    // Create listeners for all providers that can throw an UnauthorizedException.
+    // This was the missing piece in the previous attempt.
     createAuthErrorListener(currentUserProvider);
     createAuthErrorListener(userSamplesProvider);
     createAuthErrorListener(allSamplesProvider);
