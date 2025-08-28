@@ -36,7 +36,8 @@ class ScannerPageController extends StateNotifier<ScannerPageState> {
       : super(ScannerPageState());
 
   Future<void> addSamplesByCodes(List<String> codes) async {
-    if (_jwt == null) return;
+    final jwt = _jwt; // Fix for field promotion error
+    if (jwt == null) return;
     state = state.copyWith(isLoading: true);
 
     final existingIds = state.scannedSamples.map((s) => s.sampleId).toSet();
@@ -45,7 +46,7 @@ class ScannerPageController extends StateNotifier<ScannerPageState> {
       if (existingIds.contains(code)) continue; // Skip duplicates
 
       try {
-        final sample = await _apiClient.getSampleID(_jwt, id: code);
+        final sample = await _apiClient.getSampleID(jwt, id: code);
         if (sample.owner == _userEmail || _isAdmin) {
           state = state.copyWith(
             scannedSamples: [...state.scannedSamples, sample],
