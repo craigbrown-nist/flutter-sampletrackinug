@@ -55,7 +55,7 @@ class _LoginState extends ConsumerState<Login> {
             _emailController.text,
             _passwordController.text,
           );
-      // The listener below will handle navigation.
+      // The router's redirect logic will handle navigation automatically on auth state change.
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -74,13 +74,8 @@ class _LoginState extends ConsumerState<Login> {
 
   @override
   Widget build(BuildContext context) {
-    // This listener will react to changes in the auth state (e.g., after a
-    // successful login) and navigate to the home screen.
-    ref.listen<String?>(authStateProvider, (previous, next) {
-      if (next != null) {
-        Navigator.pushReplacementNamed(context, '/myhome');
-      }
-    });
+    // The GoRouter's redirect logic now handles navigation after login.
+    // The manual listener has been removed to prevent conflicts.
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
