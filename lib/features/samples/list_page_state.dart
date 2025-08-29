@@ -89,42 +89,38 @@ final listPageControllerProvider =
 });
 
 // 4. (Optional) Create computed providers (selectors) for convenience
-final filteredSamplesProvider = Provider<AsyncValue<List<Sample>>>((ref) {
-  final samplesAsyncValue = ref.watch(userSamplesProvider);
+final filteredSamplesProvider = FutureProvider<List<Sample>>((ref) async {
+  // By awaiting the future, this provider will automatically re-evaluate when
+  // userSamplesProvider re-fetches. This solves the UI not updating issue.
+  final samples = await ref.watch(userSamplesProvider.future);
   final pageState = ref.watch(listPageControllerProvider);
 
-  return samplesAsyncValue.when(
-    data: (samples) {
-      // 1. Filter out archived samples first.
-      final unarchivedSamples = samples.where((s) => s.archived != "1").toList();
+  // 1. Filter out archived samples first.
+  final unarchivedSamples = samples.where((s) => s.archived != "1").toList();
 
-      // 2. Filter by search query on the unarchived list
-      final filteredList = pageState.searchQuery.isEmpty
-          ? unarchivedSamples
-          : unarchivedSamples.where((sample) {
-              final query = pageState.searchQuery.toLowerCase();
-              return (sample.sampleId?.toLowerCase().contains(query) ?? false) ||
-                     (sample.sampleName?.toLowerCase().contains(query) ?? false) ||
-                     (sample.chemical?.toLowerCase().contains(query) ?? false) ||
-                     (sample.cellbarcode?.toLowerCase().contains(query) ?? false) ||
-                     (sample.sampenvbarcode?.toLowerCase().contains(query) ?? false);
-            }).toList();
+  // 2. Filter by search query on the unarchived list
+  final filteredList = pageState.searchQuery.isEmpty
+      ? unarchivedSamples
+      : unarchivedSamples.where((sample) {
+          final query = pageState.searchQuery.toLowerCase();
+          return (sample.sampleId?.toLowerCase().contains(query) ?? false) ||
+                 (sample.sampleName?.toLowerCase().contains(query) ?? false) ||
+                 (sample.chemical?.toLowerCase().contains(query) ?? false) ||
+                 (sample.cellbarcode?.toLowerCase().contains(query) ?? false) ||
+                 (sample.sampenvbarcode?.toLowerCase().contains(query) ?? false);
+        }).toList();
 
-      // 2. Sort the filtered list
-      filteredList.sort((a, b) {
-        int comparison;
-        if (pageState.sortType == SortType.id) {
-          comparison = (int.tryParse(a.sampleId ?? '0') ?? 0)
-              .compareTo(int.tryParse(b.sampleId ?? '0') ?? 0);
-        } else {
-          comparison = (a.chemical ?? '').toLowerCase().compareTo((b.chemical ?? '').toLowerCase());
-        }
-        return pageState.sortDirection == SortDirection.asc ? comparison : -comparison;
-      });
+  // 3. Sort the filtered list
+  filteredList.sort((a, b) {
+    int comparison;
+    if (pageState.sortType == SortType.id) {
+      comparison = (int.tryParse(a.sampleId ?? '0') ?? 0)
+          .compareTo(int.tryParse(b.sampleId ?? '0') ?? 0);
+    } else {
+      comparison = (a.chemical ?? '').toLowerCase().compareTo((b.chemical ?? '').toLowerCase());
+    }
+    return pageState.sortDirection == SortDirection.asc ? comparison : -comparison;
+  });
 
-      return AsyncValue.data(filteredList);
-    },
-    loading: () => const AsyncValue.loading(),
-    error: (e, st) => AsyncValue.error(e, st),
-  );
+  return filteredList;
 });
