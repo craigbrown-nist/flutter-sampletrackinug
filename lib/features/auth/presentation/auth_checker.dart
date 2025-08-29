@@ -23,9 +23,13 @@ class AuthChecker extends ConsumerWidget {
       ref.listen<AsyncValue<T>>(provider, (_, next) {
         if (next.hasError && next.error is UnauthorizedException) {
           // When an auth error occurs, log the user out and navigate to the login screen.
-          // We use the global navigatorKey to avoid issues with BuildContext.
+          // We use the navigatorKey to get a valid context, then find the GoRouter
+          // instance to perform the navigation safely.
           ref.read(authRepositoryProvider).logout();
-          navigatorKey.currentState?.go('/login');
+          final context = navigatorKey.currentContext;
+          if (context != null) {
+            GoRouter.of(context).go('/login');
+          }
         }
       });
     }
