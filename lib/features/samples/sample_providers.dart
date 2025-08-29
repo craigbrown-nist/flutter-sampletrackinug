@@ -11,24 +11,23 @@ import '../auth/auth_repository.dart';
 // --- Data Fetching Providers ---
 
 final userSamplesProvider = FutureProvider<List<Sample>>((ref) async {
+  final isTokenValid = ref.watch(isJwtValidProvider);
+  if (!isTokenValid) return [];
+
   final apiClient = ref.watch(apiClientProvider);
-  final jwt = ref.watch(authStateProvider);
-  final decodedJwt = ref.watch(decodedJwtProvider);
-
-  // If the user is not logged in, return an empty list.
-  if (jwt == null || decodedJwt == null || !decodedJwt.containsKey('email')) {
-    return [];
-  }
-
+  final jwt = ref.watch(authStateProvider)!;
+  final decodedJwt = ref.watch(decodedJwtProvider)!;
   final userEmail = decodedJwt['email'] as String;
 
   return apiClient.getUserSamples(jwt, userEmail: userEmail);
 });
 
 final allSamplesProvider = FutureProvider<List<Sample>>((ref) async {
+  final isTokenValid = ref.watch(isJwtValidProvider);
+  if (!isTokenValid) return [];
+
   final apiClient = ref.watch(apiClientProvider);
-  final jwt = ref.watch(authStateProvider);
-  if (jwt == null) return [];
+  final jwt = ref.watch(authStateProvider)!;
   return apiClient.getSamples(jwt);
 });
 
@@ -39,36 +38,41 @@ final samplesToEmptyProvider = FutureProvider<List<Sample>>((ref) async {
 });
 
 final formsProvider = FutureProvider<List<FormsOfSample>>((ref) async {
+  final isTokenValid = ref.watch(isJwtValidProvider);
+  if (!isTokenValid) return [];
   final apiClient = ref.watch(apiClientProvider);
-  final jwt = ref.watch(authStateProvider);
-  if (jwt == null) return [];
+  final jwt = ref.watch(authStateProvider)!;
   return apiClient.getForms(jwt);
 });
 
 final unitsProvider = FutureProvider<List<UnitsOfSample>>((ref) async {
+  final isTokenValid = ref.watch(isJwtValidProvider);
+  if (!isTokenValid) return [];
   final apiClient = ref.watch(apiClientProvider);
-  final jwt = ref.watch(authStateProvider);
-  if (jwt == null) return [];
+  final jwt = ref.watch(authStateProvider)!;
   return apiClient.getUnits(jwt);
 });
 
 final hazardsProvider = FutureProvider<List<Hazards>>((ref) async {
+  final isTokenValid = ref.watch(isJwtValidProvider);
+  if (!isTokenValid) return [];
   final apiClient = ref.watch(apiClientProvider);
-  final jwt = ref.watch(authStateProvider);
-  if (jwt == null) return [];
+  final jwt = ref.watch(authStateProvider)!;
   return apiClient.getHazards(jwt);
 });
 
 final fullCellsProvider = FutureProvider<List<Cells>>((ref) async {
+  final isTokenValid = ref.watch(isJwtValidProvider);
+  if (!isTokenValid) return [];
   final apiClient = ref.watch(apiClientProvider);
-  final jwt = ref.watch(authStateProvider);
-  if (jwt == null) return [];
+  final jwt = ref.watch(authStateProvider)!;
   return apiClient.getCans(jwt, status: 'full');
 });
 
 final emptyCellsProvider = FutureProvider<List<Cells>>((ref) async {
+  final isTokenValid = ref.watch(isJwtValidProvider);
+  if (!isTokenValid) return [];
   final apiClient = ref.watch(apiClientProvider);
-  final jwt = ref.watch(authStateProvider);
-  if (jwt == null) return [];
+  final jwt = ref.watch(authStateProvider)!;
   return apiClient.getCans(jwt, status: 'empty');
 });

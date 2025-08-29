@@ -44,16 +44,49 @@ final decodedJwtProvider = Provider<Map<String, dynamic>?>((ref) {
   return null;
 });
 
-/// Provider to get the full User object for the currently logged-in user.
-/// It now derives the email from the decoded JWT.
-final currentUserProvider = FutureProvider<User?>((ref) async {
-  final decodedJwt = ref.watch(decodedJwtProvider);
-  final allUsers = await ref.watch(allUsersProvider.future);
-
-  if (decodedJwt == null || !decodedJwt.containsKey('email')) {
-    return null;
+/// A provider that returns `true` if the current JWT is present, not expired,
+/// and ready to be used (i.e., the 'not before' time has passed).
+final isJwtValidProvider = Provider<bool>((ref) {
+  final decodedToken = ref.watch(decodedJwtProvider);
+  if (decodedToken == null) {
+    return false;
   }
 
+  final now = DateTime.now();
+
+  // Check expiration time
+  if (decodedToken.containsKey('exp')) {
+    final exp = DateTime.fromMillisecondsSinceEpoch((decodedToken['exp'] as int) * 1000);
+    if (exp.isBefore(now)) {
+      return false; // Token is expired
+    }
+  }
+
+  // Check 'not before' time
+  if (decodedToken.containsKey('nbf')) {
+    final nbf = DateTime.fromMillisecondsSinceEpoch((decodedToken['nbf'] as int) * 1000);
+    if (nbf.isAfter(now)) {
+      return false; // Token is not yet valid
+    }
+  }
+
+  return true; // Token is valid
+});
+
+
+/// Provider to get the full User object for the currently logged-in user.
+/// It now depends on the token being valid before proceeding.
+final currentUserProvider = FutureProvider<User?>((ref) async {
+  final isTokenValid = ref.watch(isJwtValidProvider);
+  if (!isTokenValid) return null;
+
+  // We can safely read the decoded JWT now, as we know it's valid.
+  final decodedJwt = ref.read(decodedJwtProvider)!;
+  final allUsers = await ref.watch(allUsersProvider.future);
+
+  if (!decodedJwt.containsKey('email')) {
+    return null;
+  }
   final userEmail = decodedJwt['email'] as String;
 
   try {
